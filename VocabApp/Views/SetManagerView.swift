@@ -17,9 +17,14 @@ struct VocabDocument: FileDocument {
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let data = Data(text.utf8)
-        return FileWrapper(regularFileWithContents: data)
+        FileWrapper(regularFileWithContents: Data(text.utf8))
     }
+}
+
+// MARK: - Import mode
+enum ImportMode {
+    case overwrite   // 전체 덮어쓰기: 세트 1번부터 재시작
+    case append      // 추가: 기존 최대 세트 번호 + 1부터
 }
 
 // MARK: - SetManagerView
@@ -29,29 +34,55 @@ struct SetManagerView: View {
 
     @State private var expandedSet: Int? = nil
     @State private var editingWord: Word? = nil
-    @State private var showDeleteSetAlert: Int? = nil
+    @State private var deleteSetKey: Int? = nil      // nil = 미표시, -1 = 진행중, 1+ = 세트번호
 
     // Export
     @State private var exportDoc: VocabDocument? = nil
     @State private var showExporter = false
     @State private var exportFilename = "vocab_export.json"
 
-    // Import
+    // Import — 파일 선택 전에 모드 확인
+    @State private var showImportModeSheet = false   // 덮어쓰기/추가 선택 시트
+    @State private var pendingImportURL: URL? = nil  // 선택된 파일 보관
     @State private var showImporter = false
-    @State private var importError: String = ""
-    @State private var showImportError = false
-    @State private var importSuccess: String = ""
-    @State private var showImportSuccess = false
 
+    // 결과 알림
+    @State private var alertTitle = ""
+    @State private var alertMessage = ""
+    @State private var showAlert = false
+
+    // MARK: Computed
     private var completedSets: [Int] {
         Array(Set(allWords.filter { !$0.isPending }.map(\.set))).sorted()
     }
-    private var pendingWords: [Word] { allWords.filter { $0.isPending } }
-
+    private var pendingWords: [Word] {
+        allWords.filter { $0.isPending }.sorted { $0.addedDate < $1.addedDate }
+    }
     private func words(for set: Int) -> [Word] {
         allWords.filter { $0.set == set }.sorted { $0.addedDate < $1.addedDate }
     }
 
+    // MARK: - Renumber helper
+    // 완성 세트를 addedDate 오름차순으로 1, 2, 3... 재부여
+    // pending 단어는 항상 max + 1 세트 번호 유지
+    private func renumberSets() {
+        let sortedSets = completedSets  // 이미 오름차순 정렬됨
+        for (newNum, oldNum) in sortedSets.enumerated() {
+            let target = newNum + 1
+            if oldNum != target {
+                for w in words(for: oldNum) { w.set = target }
+            }
+        }
+        // pending 단어 세트 번호 = 완성 세트 최대값 + 1
+        let newMax = completedSets.count  // renumber 후 최대값
+        if !pendingWords.isEmpty {
+            let pendingTarget = newMax + 1
+            for w in pendingWords { w.set = pendingTarget }
+        }
+        try? context.save()
+    }
+
+    // MARK: - Body
     var body: some View {
         NavigationStack {
             ZStack {
@@ -64,11 +95,9 @@ struct SetManagerView: View {
                     }
                 } else {
                     List {
-                        // 완성 세트
                         ForEach(completedSets, id: \.self) { setNum in
                             setSection(setNum, isPendingSection: false)
                         }
-                        // 진행중 세트
                         if !pendingWords.isEmpty {
                             setSection(-1, isPendingSection: true)
                         }
@@ -80,73 +109,100 @@ struct SetManagerView: View {
             .navigationTitle("세트 관리")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        Button { prepareExport(format: "json") } label: {
-                            Label("JSON으로 내보내기", systemImage: "arrow.up.doc")
-                        }
-                        Button { prepareExport(format: "csv") } label: {
-                            Label("CSV로 내보내기", systemImage: "tablecells")
-                        }
-                    } label: {
-                        Image(systemName: "arrow.up.circle")
-                            .foregroundStyle(Color(hex: "#e8c547"))
-                    }
+            .toolbar { toolbarContent }
+
+            // ── Sheets & Alerts ──────────────────────────────────
+            .sheet(item: $editingWord) { EditWordView(word: $0) }
+
+            // Import 모드 선택 시트
+            .confirmationDialog("가져오기 방식", isPresented: $showImportModeSheet, titleVisibility: .visible) {
+                Button("덮어쓰기 (기존 단어 전체 삭제 후 세트 1번부터)") {
+                    if let url = pendingImportURL { runImport(url: url, mode: .overwrite) }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showImporter = true
-                    } label: {
-                        Image(systemName: "arrow.down.circle")
-                            .foregroundStyle(Color(hex: "#4ecdc4"))
+                Button("추가 (기존 세트 뒤에 이어서)") {
+                    if let url = pendingImportURL { runImport(url: url, mode: .append) }
+                }
+                Button("취소", role: .cancel) { pendingImportURL = nil }
+            } message: {
+                Text("가져온 단어를 기존 단어장에 어떻게 적용할까요?")
+            }
+
+            // 파일 선택기
+            .fileImporter(
+                isPresented: $showImporter,
+                allowedContentTypes: [.json, .commaSeparatedText],
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first,
+                          url.startAccessingSecurityScopedResource() else {
+                        showError("파일 접근 권한이 없습니다.")
+                        return
                     }
+                    pendingImportURL = url
+                    showImportModeSheet = true
+                case .failure(let e):
+                    showError(e.localizedDescription)
                 }
             }
-            .sheet(item: $editingWord) { word in
-                EditWordView(word: word)
-            }
+
+            // 파일 내보내기
             .fileExporter(
                 isPresented: $showExporter,
                 document: exportDoc,
                 contentType: exportFilename.hasSuffix(".csv") ? .commaSeparatedText : .json,
                 defaultFilename: exportFilename
             ) { result in
-                if case .failure(let e) = result {
-                    importError = e.localizedDescription
-                    showImportError = true
-                }
+                if case .failure(let e) = result { showError(e.localizedDescription) }
             }
-            .fileImporter(
-                isPresented: $showImporter,
-                allowedContentTypes: [.json, .commaSeparatedText],
-                allowsMultipleSelection: false
-            ) { result in
-                handleImport(result)
-            }
-            .alert("가져오기 실패", isPresented: $showImportError) {
+
+            // 결과 알림
+            .alert(alertTitle, isPresented: $showAlert) {
                 Button("확인", role: .cancel) {}
             } message: {
-                Text(importError)
+                Text(alertMessage)
             }
-            .alert("가져오기 완료", isPresented: $showImportSuccess) {
-                Button("확인", role: .cancel) {}
-            } message: {
-                Text(importSuccess)
-            }
+
+            // 세트 삭제 확인
             .alert("세트 삭제", isPresented: Binding(
-                get: { showDeleteSetAlert != nil },
-                set: { if !$0 { showDeleteSetAlert = nil } }
+                get: { deleteSetKey != nil },
+                set: { if !$0 { deleteSetKey = nil } }
             )) {
                 Button("삭제", role: .destructive) {
-                    if let s = showDeleteSetAlert { deleteSet(s) }
+                    if let k = deleteSetKey { deleteSet(k) }
                 }
-                Button("취소", role: .cancel) {}
+                Button("취소", role: .cancel) { deleteSetKey = nil }
             } message: {
-                if let s = showDeleteSetAlert {
-                    let count = s == -1 ? pendingWords.count : words(for: s).count
-                    Text("세트 \(s == -1 ? "진행중" : "\(s)")의 단어 \(count)개를 모두 삭제합니다.")
+                if let k = deleteSetKey {
+                    let count = k == -1 ? pendingWords.count : words(for: k).count
+                    let label = k == -1 ? "진행중" : "세트 \(k)"
+                    Text("\(label)의 단어 \(count)개를 삭제하고 세트 번호를 재정렬합니다.")
                 }
+            }
+        }
+    }
+
+    // MARK: - Toolbar
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Menu {
+                Button { prepareExport(format: "json") } label: {
+                    Label("JSON으로 내보내기", systemImage: "arrow.up.doc")
+                }
+                Button { prepareExport(format: "csv") } label: {
+                    Label("CSV로 내보내기", systemImage: "tablecells")
+                }
+            } label: {
+                Image(systemName: "arrow.up.circle")
+                    .foregroundStyle(Color(hex: "#e8c547"))
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button { showImporter = true } label: {
+                Image(systemName: "arrow.down.circle")
+                    .foregroundStyle(Color(hex: "#4ecdc4"))
             }
         }
     }
@@ -154,7 +210,7 @@ struct SetManagerView: View {
     // MARK: - Set section
     @ViewBuilder
     private func setSection(_ setNum: Int, isPendingSection: Bool) -> some View {
-        let setWords = isPendingSection ? pendingWords.sorted { $0.addedDate < $1.addedDate } : words(for: setNum)
+        let setWords = isPendingSection ? pendingWords : words(for: setNum)
         let color: Color = isPendingSection
             ? Color(hex: "#00ffcc")
             : FlashCardView.colors[setNum % FlashCardView.colors.count]
@@ -199,9 +255,7 @@ struct SetManagerView: View {
                     Image(systemName: expandedSet == key ? "chevron.up" : "chevron.down")
                         .font(.caption).foregroundStyle(.secondary)
 
-                    Button {
-                        showDeleteSetAlert = key
-                    } label: {
+                    Button { deleteSetKey = key } label: {
                         Image(systemName: "trash")
                             .font(.caption).foregroundStyle(Color(hex: "#ff6b6b"))
                     }
@@ -232,10 +286,11 @@ struct SetManagerView: View {
         .listRowBackground(Color(hex: "#1a1828"))
     }
 
-    // MARK: - Delete
+    // MARK: - Delete & Renumber
     private func deleteWords(at offsets: IndexSet, in setWords: [Word]) {
         for i in offsets { context.delete(setWords[i]) }
         try? context.save()
+        renumberSets()
     }
 
     private func deleteSet(_ key: Int) {
@@ -243,12 +298,14 @@ struct SetManagerView: View {
         for word in target { context.delete(word) }
         try? context.save()
         if expandedSet == key { expandedSet = nil }
+        renumberSets()
     }
 
     // MARK: - Export
     private func prepareExport(format: String) {
+        let sorted = allWords.sorted { $0.set == $1.set ? $0.addedDate < $1.addedDate : $0.set < $1.set }
         if format == "json" {
-            let items = allWords.map { w -> [String: Any] in
+            let items = sorted.map { w -> [String: Any] in
                 ["word": w.word, "meaning": w.meaning, "exampleEn": w.exampleEn,
                  "set": w.set, "isPending": w.isPending]
             }
@@ -260,7 +317,7 @@ struct SetManagerView: View {
             }
         } else {
             var csv = "word,meaning,exampleEn,set,isPending\n"
-            for w in allWords {
+            for w in sorted {
                 let fields = [w.word, w.meaning, w.exampleEn, "\(w.set)", w.isPending ? "true" : "false"]
                 csv += fields.map { "\"\($0.replacingOccurrences(of: "\"", with: "\"\""))\"" }.joined(separator: ",") + "\n"
             }
@@ -271,91 +328,94 @@ struct SetManagerView: View {
     }
 
     // MARK: - Import
-    private func handleImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case .failure(let e):
-            importError = e.localizedDescription
-            showImportError = true
-        case .success(let urls):
-            guard let url = urls.first else { return }
-            guard url.startAccessingSecurityScopedResource() else {
-                importError = "파일 접근 권한 없음"
-                showImportError = true
-                return
+    private func runImport(url: URL, mode: ImportMode) {
+        defer {
+            url.stopAccessingSecurityScopedResource()
+            pendingImportURL = nil
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let ext = url.pathExtension.lowercased()
+
+            // 덮어쓰기: 기존 단어 전체 삭제
+            if mode == .overwrite {
+                for w in allWords { context.delete(w) }
+                try? context.save()
             }
-            defer { url.stopAccessingSecurityScopedResource() }
 
-            do {
-                let data = try Data(contentsOf: url)
-                let ext = url.pathExtension.lowercased()
-                var imported = 0
-
-                if ext == "json" {
-                    imported = try importJSON(data: data)
-                } else {
-                    imported = try importCSV(data: data)
-                }
-
-                importSuccess = "\(imported)개 단어를 가져왔습니다."
-                showImportSuccess = true
-            } catch {
-                importError = error.localizedDescription
-                showImportError = true
+            let count: Int
+            if ext == "json" {
+                count = try importJSON(data: data, mode: mode)
+            } else {
+                count = try importCSV(data: data, mode: mode)
             }
+
+            // 가져온 후 세트 번호 재정렬
+            renumberSets()
+
+            let modeLabel = mode == .overwrite ? "덮어쓰기" : "추가"
+            alertTitle = "가져오기 완료"
+            alertMessage = "\(count)개 단어를 \(modeLabel)했습니다."
+            showAlert = true
+
+        } catch {
+            showError(error.localizedDescription)
         }
     }
 
-    private func importJSON(data: Data) throws -> Int {
+    private func importJSON(data: Data, mode: ImportMode) throws -> Int {
         guard let arr = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            throw NSError(domain: "VocabImport", code: 1, userInfo: [NSLocalizedDescriptionKey: "JSON 형식 오류"])
+            throw NSError(domain: "VocabImport", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "JSON 형식 오류"])
         }
-        let maxSet = allWords.map(\.set).max() ?? 0
+        // append 모드: 현재 최대 세트 번호 기준으로 offset
+        let setOffset = mode == .append ? (allWords.map(\.set).max() ?? 0) : 0
         var count = 0
         for item in arr {
             guard let word = item["word"] as? String,
                   let meaning = item["meaning"] as? String else { continue }
             let example = item["exampleEn"] as? String ?? ""
-            let set = (item["set"] as? Int ?? 1) + maxSet
+            let originalSet = item["set"] as? Int ?? 1
             let isPending = item["isPending"] as? Bool ?? false
             context.insert(Word(word: word, meaning: meaning, exampleEn: example,
-                                set: set, isPending: isPending))
+                                set: originalSet + setOffset, isPending: isPending))
             count += 1
         }
         try? context.save()
         return count
     }
 
-    private func importCSV(data: Data) throws -> Int {
+    private func importCSV(data: Data, mode: ImportMode) throws -> Int {
         guard let str = String(data: data, encoding: .utf8) else {
-            throw NSError(domain: "VocabImport", code: 2, userInfo: [NSLocalizedDescriptionKey: "CSV 인코딩 오류"])
+            throw NSError(domain: "VocabImport", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "CSV 인코딩 오류"])
         }
-        let maxSet = allWords.map(\.set).max() ?? 0
+        let setOffset = mode == .append ? (allWords.map(\.set).max() ?? 0) : 0
         var lines = str.components(separatedBy: "\n").filter { !$0.isEmpty }
-        if lines.first?.lowercased().contains("word") == true { lines.removeFirst() } // 헤더 제거
+        if lines.first?.lowercased().contains("word") == true { lines.removeFirst() }
         var count = 0
         for line in lines {
             let fields = parseCSVLine(line)
             guard fields.count >= 2 else { continue }
-            let word = fields[0]
+            let word    = fields[0]
             let meaning = fields[1]
             let example = fields.count > 2 ? fields[2] : ""
-            let set = (fields.count > 3 ? Int(fields[3]) ?? 1 : 1) + maxSet
+            let originalSet = fields.count > 3 ? (Int(fields[3]) ?? 1) : 1
             let isPending = fields.count > 4 ? fields[4] == "true" : false
             context.insert(Word(word: word, meaning: meaning, exampleEn: example,
-                                set: set, isPending: isPending))
+                                set: originalSet + setOffset, isPending: isPending))
             count += 1
         }
         try? context.save()
         return count
     }
 
-    // 간단한 CSV 파싱 (따옴표 처리 포함)
     private func parseCSVLine(_ line: String) -> [String] {
         var fields: [String] = []
         var current = ""
         var inQuotes = false
         var i = line.startIndex
-
         while i < line.endIndex {
             let c = line[i]
             if c == "\"" {
@@ -367,8 +427,7 @@ struct SetManagerView: View {
                 }
                 inQuotes.toggle()
             } else if c == "," && !inQuotes {
-                fields.append(current)
-                current = ""
+                fields.append(current); current = ""
             } else {
                 current.append(c)
             }
@@ -376,6 +435,12 @@ struct SetManagerView: View {
         }
         fields.append(current)
         return fields
+    }
+
+    private func showError(_ msg: String) {
+        alertTitle = "오류"
+        alertMessage = msg
+        showAlert = true
     }
 }
 
@@ -421,7 +486,7 @@ struct EditWordView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("저장") {
-                        word.word = wordText.trimmingCharacters(in: .whitespaces)
+                        word.word    = wordText.trimmingCharacters(in: .whitespaces)
                         word.meaning = meaningText.trimmingCharacters(in: .whitespaces)
                         word.exampleEn = exampleText.trimmingCharacters(in: .whitespaces)
                         try? context.save()
@@ -433,7 +498,7 @@ struct EditWordView: View {
                 }
             }
             .onAppear {
-                wordText = word.word
+                wordText    = word.word
                 meaningText = word.meaning
                 exampleText = word.exampleEn
             }
