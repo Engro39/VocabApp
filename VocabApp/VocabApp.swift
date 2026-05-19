@@ -25,8 +25,8 @@ struct VocabApp: App {
         let count = (try? context.fetchCount(FetchDescriptor<Word>())) ?? 0
         guard count == 0 else { return }
         for w in SeedData.words {
-            context.insert(Word(word: w.word, meaning: w.meaning, exampleEn: w.exampleEn, session: w.session))
-        }
+            context.insert(Word(word: w.word, meaning: w.meaning, exampleEn: w.exampleEn, set: w.session))
+        }        
         try? context.save()
     }
 }
