@@ -4,8 +4,10 @@ import AVFoundation
 
 struct FlashCardView: View {
     @Query(sort: \Word.addedDate) private var allWords: [Word]
-    @State private var filterSet: Int = 0   // 0 = ALL, -1 = 진행중
+
+    @State private var filterSet: Int = 0      // 0 = ALL, -1 = 진행중
     @State private var shuffled: Bool = false
+    @State private var displayList: [Word] = []  // 셔플 상태 고정 리스트
     @State private var currentIndex: Int = 0
     @State private var isFlipped: Bool = false
     @State private var flipDeg: Double = 0
@@ -19,21 +21,19 @@ struct FlashCardView: View {
         Color(hex: "#60a5fa"), Color(hex: "#facc15"), Color(hex: "#e8c547"),
     ]
 
-    private var maxSet: Int { allWords.map(\.set).max() ?? 1 }
+    // 완성된 세트 번호 목록
+    private var completedSets: [Int] {
+        Array(Set(allWords.filter { !$0.isPending }.map(\.set))).sorted()
+    }
 
-    private var displayList: [Word] {
-        var list: [Word]
-        switch filterSet {
-        case 0:  list = allWords
-        case -1: list = allWords.filter { $0.isPending }
-        default: list = allWords.filter { $0.set == filterSet }
-        }
-        return shuffled ? list.shuffled() : list
+    private var hasPending: Bool {
+        allWords.contains { $0.isPending }
     }
 
     private var card: Word? {
-        guard !displayList.isEmpty else { return nil }
-        return displayList[min(currentIndex, displayList.count - 1)]
+        guard !displayList.isEmpty,
+              currentIndex < displayList.count else { return nil }
+        return displayList[currentIndex]
     }
 
     var body: some View {
@@ -47,7 +47,8 @@ struct FlashCardView: View {
 
                     if !displayList.isEmpty {
                         HStack {
-                            ProgressView(value: Double(currentIndex + 1), total: Double(displayList.count))
+                            ProgressView(value: Double(currentIndex + 1),
+                                         total: Double(displayList.count))
                                 .tint(Color(hex: "#e8c547"))
                             Text("\(currentIndex + 1)/\(displayList.count)")
                                 .font(.caption).foregroundStyle(.secondary)
@@ -97,16 +98,31 @@ struct FlashCardView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         shuffled.toggle()
-                        currentIndex = 0
-                        isFlipped = false
-                        flipDeg = 0
+                        rebuildList()
                     } label: {
                         Image(systemName: shuffled ? "shuffle.circle.fill" : "shuffle")
                             .foregroundStyle(Color(hex: "#e8c547"))
                     }
                 }
             }
+            .onChange(of: allWords) { rebuildList() }
+            .onChange(of: filterSet) { rebuildList() }
+            .onAppear { rebuildList() }
         }
+    }
+
+    // MARK: - Rebuild display list (fixes shuffle navigation bug)
+    private func rebuildList() {
+        var list: [Word]
+        switch filterSet {
+        case 0:  list = allWords
+        case -1: list = allWords.filter { $0.isPending }
+        default: list = allWords.filter { $0.set == filterSet }
+        }
+        displayList = shuffled ? list.shuffled() : list
+        currentIndex = 0
+        isFlipped = false
+        flipDeg = 0
     }
 
     // MARK: - Set filter bar
@@ -115,10 +131,10 @@ struct FlashCardView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 setChip(label: "ALL", value: 0)
-                ForEach(1...max(maxSet, 1), id: \.self) { s in
+                ForEach(completedSets, id: \.self) { s in
                     setChip(label: "세트 \(s)", value: s)
                 }
-                if allWords.contains(where: { $0.isPending }) {
+                if hasPending {
                     setChip(label: "진행중", value: -1)
                 }
             }
@@ -134,9 +150,6 @@ struct FlashCardView: View {
         let selected = filterSet == value
         Button {
             filterSet = value
-            currentIndex = 0
-            isFlipped = false
-            flipDeg = 0
         } label: {
             Text(label)
                 .font(.caption.bold())
@@ -159,7 +172,7 @@ struct FlashCardView: View {
                 .rotation3DEffect(.degrees(flipDeg - 180), axis: (x: 0, y: 1, z: 0))
                 .opacity(flipDeg >= 90 ? 1 : 0)
         }
-        .frame(height: 260)
+        .frame(height: 280)
         .onTapGesture { flipCard() }
     }
 
@@ -175,17 +188,54 @@ struct FlashCardView: View {
                                        startPoint: .topLeading, endPoint: .bottomTrailing))
                 .overlay(RoundedRectangle(cornerRadius: 20).stroke(setColor.opacity(0.3), lineWidth: 1))
 
-            VStack(spacing: 14) {
-                if isFront {
-                    Text("세트 \(word.set)\(word.isPending ? " ·진행중" : "")")
+            if isFront {
+                VStack(spacing: 12) {
+                    Text("세트 \(word.set)\(word.isPending ? " · 진행중" : "")")
                         .font(.caption).foregroundStyle(.secondary)
+
                     Text(word.word)
                         .font(.system(size: 32, weight: .bold))
                         .foregroundStyle(Color(hex: "#e8c547"))
                         .multilineTextAlignment(.center)
-                    speakButton(text: word.word, label: "🔊")
+
+                    // 단어 + 예문 TTS 버튼 둘 다 전면에 표시
+                    HStack(spacing: 16) {
+                        Button {
+                            speak(word.word)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "speaker.wave.2")
+                                Text("단어")
+                                    .font(.caption)
+                            }
+                            .font(.caption)
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .overlay(RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.secondary.opacity(0.4), lineWidth: 1))
+                            .foregroundStyle(.secondary)
+                        }
+
+                        Button {
+                            speak(word.exampleEn)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "speaker.wave.2")
+                                Text("예문")
+                                    .font(.caption)
+                            }
+                            .font(.caption)
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .overlay(RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.secondary.opacity(0.4), lineWidth: 1))
+                            .foregroundStyle(.secondary)
+                        }
+                    }
+
                     Text("탭하여 뒤집기").font(.caption2).foregroundStyle(.tertiary)
-                } else {
+                }
+                .padding(24)
+            } else {
+                VStack(spacing: 14) {
                     Text(word.meaning)
                         .font(.system(size: 24, weight: .bold))
                         .foregroundStyle(Color(hex: "#4ecdc4"))
@@ -193,22 +243,21 @@ struct FlashCardView: View {
                     Text(word.exampleEn)
                         .font(.subheadline).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center).padding(.horizontal)
-                    speakButton(text: word.exampleEn, label: "🔊 예문")
+                    Button { speak(word.exampleEn) } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "speaker.wave.2")
+                            Text("예문")
+                        }
+                        .font(.caption)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .overlay(RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.secondary.opacity(0.4), lineWidth: 1))
+                        .foregroundStyle(.secondary)
+                    }
                 }
+                .padding(24)
             }
-            .padding(24)
         }
-    }
-
-    @ViewBuilder
-    private func speakButton(text: String, label: String) -> some View {
-        Button { speak(text) } label: {
-            Text(label)
-                .font(.caption)
-                .padding(.horizontal, 12).padding(.vertical, 5)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.4), lineWidth: 1))
-        }
-        .foregroundStyle(.secondary)
     }
 
     // MARK: - Word chips

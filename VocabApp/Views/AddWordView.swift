@@ -4,23 +4,21 @@ import AVFoundation
 
 struct AddWordView: View {
     @Environment(\.modelContext) private var context
-
-    // AppStorage로 설정값 읽기 (SettingsView와 공유)
     @AppStorage("setBatchSize") private var setBatchSize: Int = 20
 
     // pending 단어만 실시간 쿼리
-    @Query(filter: #Predicate<Word> { $0.isPending == true },
-           sort: \Word.addedDate)
+    @Query(filter: #Predicate<Word> { $0.isPending == true }, sort: \Word.addedDate)
     private var pendingWords: [Word]
 
-    // 최대 세트 번호 계산용
-    @Query(sort: \Word.set, order: .reverse) private var allWordsBySet: [Word]
+    // 최대 세트 번호 계산용 (완성된 세트만)
+    @Query(filter: #Predicate<Word> { $0.isPending == false }, sort: \Word.set, order: .reverse)
+    private var completedWords: [Word]
 
     @State private var inputWord: String = ""
     @State private var detail: WordDetail? = nil
     @State private var isLoading: Bool = false
     @State private var errorMessage: String = ""
-    @State private var successMessage: String = ""
+    @State private var showSuccess: Bool = false
 
     private let synthesizer = AVSpeechSynthesizer()
 
@@ -28,11 +26,10 @@ struct AddWordView: View {
     private var progress: Double { min(Double(pendingCount) / Double(setBatchSize), 1.0) }
     private var isBatchComplete: Bool { pendingCount >= setBatchSize }
 
-    // 현재 진행중인 세트 번호 (pending 단어들의 세트)
-    // pending이 없으면 maxSet + 1을 미리 예약
-    private var currentPendingSet: Int {
+    // 진행중 세트 번호: pending 단어가 있으면 그 세트, 없으면 완성 세트 최대값 + 1
+    private var pendingSetNumber: Int {
         if let first = pendingWords.first { return first.set }
-        return (allWordsBySet.first?.set ?? 0) + 1
+        return (completedWords.first?.set ?? 0) + 1
     }
 
     private var hasAPIKey: Bool {
@@ -51,10 +48,8 @@ struct AddWordView: View {
                         if !errorMessage.isEmpty {
                             messageBanner(text: errorMessage, color: Color(hex: "#ff6b6b"))
                         }
-                        if !successMessage.isEmpty {
-                            messageBanner(text: successMessage,
-                                          color: Color(hex: "#4ecdc4"),
-                                          icon: "checkmark.circle.fill")
+                        if showSuccess {
+                            messageBanner(text: "추가 완료!", color: Color(hex: "#4ecdc4"), icon: "checkmark.circle.fill")
                         }
                         if let d = detail { detailSection(d) }
                         Spacer(minLength: 40)
@@ -73,7 +68,7 @@ struct AddWordView: View {
     private var progressSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("세트 \(currentPendingSet) 진행중")
+                Text("진행중 세트 \(pendingSetNumber)")
                     .font(.caption.bold())
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -90,9 +85,7 @@ struct AddWordView: View {
                         .fill(Color.white.opacity(0.08))
                         .frame(height: 8)
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(isBatchComplete
-                              ? Color(hex: "#e8c547")
-                              : Color(hex: "#4ecdc4"))
+                        .fill(isBatchComplete ? Color(hex: "#e8c547") : Color(hex: "#4ecdc4"))
                         .frame(width: geo.size.width * progress, height: 8)
                         .animation(.easeInOut(duration: 0.4), value: pendingCount)
                 }
@@ -102,12 +95,12 @@ struct AddWordView: View {
             if isBatchComplete {
                 HStack(spacing: 6) {
                     Image(systemName: "star.fill").foregroundStyle(Color(hex: "#e8c547"))
-                    Text("\(setBatchSize)개 달성! 세트 \(currentPendingSet) 완성 🎉")
+                    Text("세트 \(pendingSetNumber) 완성! 다음 단어부터 새 세트 시작")
                         .font(.caption.bold())
                         .foregroundStyle(Color(hex: "#e8c547"))
                 }
             } else {
-                Text("\(setBatchSize)개가 쌓이면 세트로 확정됩니다")
+                Text("\(setBatchSize - pendingCount)개 더 추가하면 세트 완성")
                     .font(.caption).foregroundStyle(.tertiary)
             }
         }
@@ -143,7 +136,7 @@ struct AddWordView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    // MARK: - Input (생성 버튼 제거, submitLabel .search 만 사용)
+    // MARK: - Input
     @ViewBuilder
     private var inputSection: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -158,14 +151,13 @@ struct AddWordView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1)))
                 .foregroundStyle(.white)
-                .submitLabel(.search)           // 키보드 파란 돋보기
+                .submitLabel(.search)
                 .autocorrectionDisabled(false)
                 .textInputAutocapitalization(.never)
                 .onSubmit { Task { await generate() } }
                 .overlay(alignment: .trailing) {
                     if isLoading {
-                        ProgressView()
-                            .padding(.trailing, 12)
+                        ProgressView().padding(.trailing, 12)
                     }
                 }
         }
@@ -175,7 +167,6 @@ struct AddWordView: View {
     @ViewBuilder
     private func detailSection(_ d: WordDetail) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-
             // 단어 헤더
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -202,20 +193,17 @@ struct AddWordView: View {
             .background(Color(hex: "#1a1828"))
             .clipShape(RoundedRectangle(cornerRadius: 16))
 
-            // 한국어 뜻
             detailCard(title: "한국어 뜻", icon: "textformat.alt") {
                 Text(d.meaningKo)
                     .font(.title3.bold())
                     .foregroundStyle(Color(hex: "#4ecdc4"))
             }
 
-            // 영어 정의
             detailCard(title: "Definition", icon: "book") {
                 Text(d.detailedDefinition)
                     .font(.subheadline).foregroundStyle(.primary).lineSpacing(4)
             }
 
-            // 예문
             detailCard(title: "예문", icon: "quote.bubble") {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(Array(d.examples.enumerated()), id: \.offset) { i, ex in
@@ -237,7 +225,6 @@ struct AddWordView: View {
                 }
             }
 
-            // 뉘앙스
             if !d.nuance.isEmpty {
                 detailCard(title: "뉘앙스 & 사용 팁", icon: "lightbulb") {
                     Text(d.nuance)
@@ -245,7 +232,6 @@ struct AddWordView: View {
                 }
             }
 
-            // 관련 단어
             if !d.relatedWords.isEmpty {
                 detailCard(title: "관련 단어", icon: "link") {
                     FlowLayout(spacing: 6) {
@@ -261,7 +247,6 @@ struct AddWordView: View {
                 }
             }
 
-            // 단어장에 추가 버튼
             Button { addWord(d) } label: {
                 Label("단어장에 추가", systemImage: "plus.circle.fill")
                     .font(.headline)
@@ -294,7 +279,7 @@ struct AddWordView: View {
         guard !trimmed.isEmpty else { return }
         isLoading = true
         errorMessage = ""
-        successMessage = ""
+        showSuccess = false
         detail = nil
         do {
             detail = try await ClaudeService.shared.generateWordDetail(trimmed)
@@ -305,24 +290,13 @@ struct AddWordView: View {
     }
 
     private func addWord(_ d: WordDetail) {
-        // 현재 pending 개수 기준으로 세트 로직 결정
-        // 5가지 요구사항:
-        // - setBatchSize 미만이면 현재 pending 세트에 추가 (isPending = true)
-        // - setBatchSize 달성 시 기존 pending을 완성(isPending=false)하고 새 세트 시작
-        // - 메시지 갯수 = 추가 후 실제 pending 갯수 (진행 바와 동일)
+        // 핵심 로직:
+        // - 항상 진행중(isPending=true) 세트에만 추가
+        // - 추가 후 pendingCount가 setBatchSize에 도달하면:
+        //   → 모든 pending을 완성(isPending=false)으로 전환 → 진행바 자동 0 리셋
+        // - 새 세트 탭은 생성하지 않음 (탭은 완성 세트 기준으로만 표시)
 
-        let targetSet: Int
-        let willComplete = isBatchComplete  // 지금 이미 꽉 찼으면 새 세트
-
-        if willComplete {
-            // 기존 pending 단어들 완성 처리
-            for w in pendingWords { w.isPending = false }
-            // 새 세트 번호
-            targetSet = (allWordsBySet.first?.set ?? 0) + 1
-        } else {
-            // 현재 진행중 세트에 추가
-            targetSet = currentPendingSet
-        }
+        let targetSet = pendingSetNumber
 
         let newWord = Word(
             word: d.word,
@@ -332,20 +306,24 @@ struct AddWordView: View {
             isPending: true
         )
         context.insert(newWord)
-        try? context.save()
 
-        // 메시지: 추가 후 pending 갯수는 pendingWords가 아직 갱신 전이므로 직접 계산
-        // willComplete였으면 새 세트에 1개, 아니면 기존 + 1
-        let newPendingCount = willComplete ? 1 : pendingCount + 1
-
-        if newPendingCount >= setBatchSize {
-            successMessage = "'\(d.word)' 추가! 🎉 세트 \(targetSet) 완성!"
-        } else {
-            successMessage = "'\(d.word)' 추가 완료! 세트 \(targetSet) (\(newPendingCount)/\(setBatchSize))"
+        // 추가 후 개수 체크 (newWord 포함)
+        let newCount = pendingCount + 1
+        if newCount >= setBatchSize {
+            // 모든 pending(기존 + 방금 추가한 것) 완성 처리
+            for w in pendingWords { w.isPending = false }
+            newWord.isPending = false
+            // → pendingWords가 빈 배열이 되어 진행바 자동 0 리셋
         }
+
+        try? context.save()
 
         detail = nil
         inputWord = ""
+        showSuccess = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            showSuccess = false
+        }
     }
 
     private func speak(_ text: String) {
