@@ -306,8 +306,19 @@ struct SetManagerView: View {
         let sorted = allWords.sorted { $0.set == $1.set ? $0.addedDate < $1.addedDate : $0.set < $1.set }
         if format == "json" {
             let items = sorted.map { w -> [String: Any] in
-                ["word": w.word, "meaning": w.meaning, "exampleEn": w.exampleEn,
-                 "set": w.set, "isPending": w.isPending]
+                var dict: [String: Any] = [
+                    "word": w.word, "meaning": w.meaning, "exampleEn": w.exampleEn,
+                    "set": w.set, "isPending": w.isPending
+                ]
+                if w.hasDetail {
+                    dict["pronunciation"]      = w.pronunciation
+                    dict["partOfSpeech"]       = w.partOfSpeech
+                    dict["detailedDefinition"] = w.detailedDefinition
+                    dict["examples"]           = w.examples
+                    dict["nuance"]             = w.nuance
+                    dict["relatedWords"]        = w.relatedWords
+                }
+                return dict
             }
             if let data = try? JSONSerialization.data(withJSONObject: items, options: .prettyPrinted),
                let str = String(data: data, encoding: .utf8) {
@@ -316,9 +327,13 @@ struct SetManagerView: View {
                 showExporter = true
             }
         } else {
-            var csv = "word,meaning,exampleEn,set,isPending\n"
+            var csv = "word,meaning,exampleEn,set,isPending,pronunciation,partOfSpeech,detailedDefinition,examples,nuance,relatedWords\n"
             for w in sorted {
-                let fields = [w.word, w.meaning, w.exampleEn, "\(w.set)", w.isPending ? "true" : "false"]
+                let fields = [
+                    w.word, w.meaning, w.exampleEn, "\(w.set)", w.isPending ? "true" : "false",
+                    w.pronunciation, w.partOfSpeech, w.detailedDefinition,
+                    w.examplesJSON, w.nuance, w.relatedWordsJSON
+                ]
                 csv += fields.map { "\"\($0.replacingOccurrences(of: "\"", with: "\"\""))\"" }.joined(separator: ",") + "\n"
             }
             exportDoc = VocabDocument(text: csv)
@@ -375,11 +390,22 @@ struct SetManagerView: View {
         for item in arr {
             guard let word = item["word"] as? String,
                   let meaning = item["meaning"] as? String else { continue }
-            let example = item["exampleEn"] as? String ?? ""
+            let example     = item["exampleEn"] as? String ?? ""
             let originalSet = item["set"] as? Int ?? 1
-            let isPending = item["isPending"] as? Bool ?? false
-            context.insert(Word(word: word, meaning: meaning, exampleEn: example,
-                                set: originalSet + setOffset, isPending: isPending))
+            let isPending   = item["isPending"] as? Bool ?? false
+            let pronunciation      = item["pronunciation"] as? String ?? ""
+            let partOfSpeech       = item["partOfSpeech"] as? String ?? ""
+            let detailedDefinition = item["detailedDefinition"] as? String ?? ""
+            let examples           = item["examples"] as? [String] ?? []
+            let nuance             = item["nuance"] as? String ?? ""
+            let relatedWords       = item["relatedWords"] as? [String] ?? []
+            context.insert(Word(
+                word: word, meaning: meaning, exampleEn: example,
+                set: originalSet + setOffset, isPending: isPending,
+                pronunciation: pronunciation, partOfSpeech: partOfSpeech,
+                detailedDefinition: detailedDefinition, examples: examples,
+                nuance: nuance, relatedWords: relatedWords
+            ))
             count += 1
         }
         try? context.save()
@@ -398,13 +424,27 @@ struct SetManagerView: View {
         for line in lines {
             let fields = parseCSVLine(line)
             guard fields.count >= 2 else { continue }
-            let word    = fields[0]
-            let meaning = fields[1]
-            let example = fields.count > 2 ? fields[2] : ""
-            let originalSet = fields.count > 3 ? (Int(fields[3]) ?? 1) : 1
-            let isPending = fields.count > 4 ? fields[4] == "true" : false
-            context.insert(Word(word: word, meaning: meaning, exampleEn: example,
-                                set: originalSet + setOffset, isPending: isPending))
+            let word        = fields[0]
+            let meaning     = fields[1]
+            let example     = fields.count > 2  ? fields[2] : ""
+            let originalSet = fields.count > 3  ? (Int(fields[3]) ?? 1) : 1
+            let isPending   = fields.count > 4  ? fields[4] == "true" : false
+            // 상세 필드 (구버전 CSV에는 없을 수 있으므로 기본값 사용)
+            let pronunciation      = fields.count > 5  ? fields[5] : ""
+            let partOfSpeech       = fields.count > 6  ? fields[6] : ""
+            let detailedDefinition = fields.count > 7  ? fields[7] : ""
+            let examplesJSON       = fields.count > 8  ? fields[8] : "[]"
+            let nuance             = fields.count > 9  ? fields[9] : ""
+            let relatedWordsJSON   = fields.count > 10 ? fields[10] : "[]"
+            let examples     = decodeJSONArray(examplesJSON)
+            let relatedWords = decodeJSONArray(relatedWordsJSON)
+            context.insert(Word(
+                word: word, meaning: meaning, exampleEn: example,
+                set: originalSet + setOffset, isPending: isPending,
+                pronunciation: pronunciation, partOfSpeech: partOfSpeech,
+                detailedDefinition: detailedDefinition, examples: examples,
+                nuance: nuance, relatedWords: relatedWords
+            ))
             count += 1
         }
         try? context.save()
@@ -435,6 +475,12 @@ struct SetManagerView: View {
         }
         fields.append(current)
         return fields
+    }
+
+    private func decodeJSONArray(_ json: String) -> [String] {
+        guard let data = json.data(using: .utf8),
+              let arr = try? JSONDecoder().decode([String].self, from: data) else { return [] }
+        return arr
     }
 
     private func showError(_ msg: String) {

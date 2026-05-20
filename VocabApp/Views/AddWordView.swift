@@ -20,8 +20,6 @@ struct AddWordView: View {
     @State private var errorMessage: String = ""
     @State private var showSuccess: Bool = false
 
-    private let synthesizer = AVSpeechSynthesizer()
-
     private var pendingCount: Int { pendingWords.count }
     private var progress: Double { min(Double(pendingCount) / Double(setBatchSize), 1.0) }
     private var isBatchComplete: Bool { pendingCount >= setBatchSize }
@@ -303,7 +301,13 @@ struct AddWordView: View {
             meaning: d.cardMeaning,
             exampleEn: d.cardExample,
             set: targetSet,
-            isPending: true
+            isPending: true,
+            pronunciation: d.pronunciation,
+            partOfSpeech: d.partOfSpeech,
+            detailedDefinition: d.detailedDefinition,
+            examples: d.examples,
+            nuance: d.nuance,
+            relatedWords: d.relatedWords
         )
         context.insert(newWord)
 
@@ -327,11 +331,7 @@ struct AddWordView: View {
     }
 
     private func speak(_ text: String) {
-        synthesizer.stopSpeaking(at: .immediate)
-        let u = AVSpeechUtterance(string: text)
-        u.voice = AVSpeechSynthesisVoice(language: "en-US")
-        u.rate = 0.45
-        synthesizer.speak(u)
+        SpeechService.shared.speak(text)
     }
 }
 

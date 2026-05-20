@@ -11,8 +11,7 @@ struct FlashCardView: View {
     @State private var currentIndex: Int = 0
     @State private var isFlipped: Bool = false
     @State private var flipDeg: Double = 0
-
-    private let synthesizer = AVSpeechSynthesizer()
+    @State private var showingDetail: Word? = nil
 
     static let colors: [Color] = [
         Color(hex: "#e8c547"),
@@ -108,6 +107,9 @@ struct FlashCardView: View {
             .onChange(of: allWords) { rebuildList() }
             .onChange(of: filterSet) { rebuildList() }
             .onAppear { rebuildList() }
+            .sheet(item: $showingDetail) { word in
+                WordDetailSheet(word: word)
+            }
         }
     }
 
@@ -173,7 +175,10 @@ struct FlashCardView: View {
                 .opacity(flipDeg >= 90 ? 1 : 0)
         }
         .frame(height: 280)
-        .onTapGesture { flipCard() }
+        .onTapGesture(count: 2) {
+            if word.hasDetail { showingDetail = word }
+        }
+        .onTapGesture(count: 1) { flipCard() }
     }
 
     @ViewBuilder
@@ -231,7 +236,11 @@ struct FlashCardView: View {
                         }
                     }
 
-                    Text("탭하여 뒤집기").font(.caption2).foregroundStyle(.tertiary)
+                    if word.hasDetail {
+                        Text("더블탭으로 상세보기").font(.caption2).foregroundStyle(Color(hex: "#a78bfa").opacity(0.7))
+                    } else {
+                        Text("탭하여 뒤집기").font(.caption2).foregroundStyle(.tertiary)
+                    }
                 }
                 .padding(24)
             } else {
@@ -306,10 +315,149 @@ struct FlashCardView: View {
     }
 
     private func speak(_ text: String) {
-        synthesizer.stopSpeaking(at: .immediate)
-        let u = AVSpeechUtterance(string: text)
-        u.voice = AVSpeechSynthesisVoice(language: "en-US")
-        u.rate = 0.45
-        synthesizer.speak(u)
+        SpeechService.shared.speak(text)
+    }
+}
+
+// MARK: - Word Detail Sheet
+struct WordDetailSheet: View {
+    let word: Word
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color(hex: "#0f0e17").ignoresSafeArea()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // 헤더
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                Text(word.word)
+                                    .font(.system(size: 28, weight: .bold))
+                                    .foregroundStyle(Color(hex: "#e8c547"))
+                                Button { SpeechService.shared.speak(word.word) } label: {
+                                    Image(systemName: "speaker.wave.2")
+                                        .foregroundStyle(.secondary).font(.title3)
+                                }
+                            }
+                            HStack(spacing: 8) {
+                                Text(word.pronunciation).font(.subheadline).foregroundStyle(.secondary)
+                                Text(word.partOfSpeech)
+                                    .font(.caption.bold())
+                                    .padding(.horizontal, 8).padding(.vertical, 3)
+                                    .background(Color(hex: "#a78bfa").opacity(0.2))
+                                    .foregroundStyle(Color(hex: "#a78bfa"))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(18)
+                        .background(Color(hex: "#1a1828"))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                        detailCard(title: "한국어 뜻", icon: "textformat.alt") {
+                            Text(word.meaning)
+                                .font(.title3.bold())
+                                .foregroundStyle(Color(hex: "#4ecdc4"))
+                        }
+
+                        if !word.detailedDefinition.isEmpty {
+                            detailCard(title: "Definition", icon: "book") {
+                                Text(word.detailedDefinition)
+                                    .font(.subheadline).foregroundStyle(.primary).lineSpacing(4)
+                            }
+                        }
+
+                        if !word.examples.isEmpty {
+                            detailCard(title: "예문", icon: "quote.bubble") {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    ForEach(Array(word.examples.enumerated()), id: \.offset) { i, ex in
+                                        HStack(alignment: .top, spacing: 10) {
+                                            Text("\(i + 1)")
+                                                .font(.caption.bold()).foregroundStyle(.secondary).frame(width: 16)
+                                            Text(ex)
+                                                .font(.subheadline).foregroundStyle(.primary).lineSpacing(3)
+                                            Spacer()
+                                            Button { SpeechService.shared.speak(ex) } label: {
+                                                Image(systemName: "speaker.wave.2")
+                                                    .font(.caption).foregroundStyle(.secondary)
+                                            }
+                                        }
+                                        if i < word.examples.count - 1 {
+                                            Divider().background(Color.white.opacity(0.1))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if !word.nuance.isEmpty {
+                            detailCard(title: "뉘앙스 & 사용 팁", icon: "lightbulb") {
+                                Text(word.nuance)
+                                    .font(.subheadline).foregroundStyle(.primary).lineSpacing(4)
+                            }
+                        }
+
+                        if !word.relatedWords.isEmpty {
+                            detailCard(title: "관련 단어", icon: "link") {
+                                FlexWrap(items: word.relatedWords) { w in
+                                    Text(w)
+                                        .font(.caption.bold())
+                                        .padding(.horizontal, 10).padding(.vertical, 5)
+                                        .background(Color(hex: "#fb923c").opacity(0.15))
+                                        .foregroundStyle(Color(hex: "#fb923c"))
+                                        .clipShape(Capsule())
+                                }
+                            }
+                        }
+
+                        Spacer(minLength: 40)
+                    }
+                    .padding()
+                }
+            }
+            .navigationTitle("상세 정보")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("닫기") { dismiss() }
+                        .foregroundStyle(Color(hex: "#e8c547"))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func detailCard<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(title, systemImage: icon)
+                .font(.caption.bold()).foregroundStyle(.secondary)
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color(hex: "#1a1828"))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+// 관련단어 태그 래핑 레이아웃
+private struct FlexWrap<Item: Hashable, Content: View>: View {
+    let items: [Item]
+    let content: (Item) -> Content
+
+    init(items: [Item], @ViewBuilder content: @escaping (Item) -> Content) {
+        self.items = items
+        self.content = content
+    }
+
+    var body: some View {
+        FlowLayout(spacing: 6) {
+            ForEach(items, id: \.self) { item in
+                content(item)
+            }
+        }
     }
 }

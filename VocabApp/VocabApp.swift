@@ -7,7 +7,7 @@ struct VocabApp: App {
 
     init() {
         do {
-            container = try ModelContainer(for: Word.self)
+            container = try ModelContainer(for: Word.self, migrationPlan: WordMigrationPlan.self)
             seedIfNeeded(context: container.mainContext)
         } catch {
             fatalError("SwiftData 초기화 실패: \(error)")
