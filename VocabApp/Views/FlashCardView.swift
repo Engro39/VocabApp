@@ -12,12 +12,20 @@ struct FlashCardView: View {
     @State private var isFlipped: Bool = false
     @State private var flipDeg: Double = 0
     @State private var showingDetail: Word? = nil
+    @State private var hasInitialized: Bool = false
 
+    // 10개 고정 색상, set % 10 으로 순환 (세트 1 = 세트 11, 세트 2 = 세트 12, ...)
     static let colors: [Color] = [
-        Color(hex: "#e8c547"),
-        Color(hex: "#ff6b6b"), Color(hex: "#4ecdc4"), Color(hex: "#a78bfa"),
-        Color(hex: "#fb923c"), Color(hex: "#34d399"), Color(hex: "#f472b6"),
-        Color(hex: "#60a5fa"), Color(hex: "#facc15"), Color(hex: "#e8c547"),
+        Color(hex: "#e8c547"),  // 0, 10, 20…
+        Color(hex: "#ff6b6b"),  // 1, 11, 21…
+        Color(hex: "#4ecdc4"),  // 2, 12, 22…
+        Color(hex: "#a78bfa"),  // 3, 13, 23…
+        Color(hex: "#fb923c"),  // 4, 14, 24…
+        Color(hex: "#34d399"),  // 5, 15, 25…
+        Color(hex: "#f472b6"),  // 6, 16, 26…
+        Color(hex: "#60a5fa"),  // 7, 17, 27…
+        Color(hex: "#facc15"),  // 8, 18, 28…
+        Color(hex: "#c084fc"),  // 9, 19, 29…
     ]
 
     // 완성된 세트 번호 목록
@@ -104,17 +112,25 @@ struct FlashCardView: View {
                     }
                 }
             }
-            .onChange(of: allWords) { rebuildList() }
+            .onChange(of: allWords) { rebuildList(preservePosition: true) }
             .onChange(of: filterSet) { rebuildList() }
-            .onAppear { rebuildList() }
+            .onAppear {
+                guard !hasInitialized else { return }
+                rebuildList()
+                hasInitialized = true
+            }
             .sheet(item: $showingDetail) { word in
                 WordDetailSheet(word: word)
             }
         }
     }
 
-    // MARK: - Rebuild display list (fixes shuffle navigation bug)
-    private func rebuildList() {
+    // MARK: - Rebuild display list
+    private func rebuildList(preservePosition: Bool = false) {
+        let previousID = preservePosition && !displayList.isEmpty
+            ? displayList[min(currentIndex, displayList.count - 1)].persistentModelID
+            : nil
+
         var list: [Word]
         switch filterSet {
         case 0:  list = allWords
@@ -122,9 +138,15 @@ struct FlashCardView: View {
         default: list = allWords.filter { $0.set == filterSet }
         }
         displayList = shuffled ? list.shuffled() : list
-        currentIndex = 0
-        isFlipped = false
-        flipDeg = 0
+
+        if let pid = previousID,
+           let idx = displayList.firstIndex(where: { $0.persistentModelID == pid }) {
+            currentIndex = idx
+        } else {
+            currentIndex = 0
+            isFlipped = false
+            flipDeg = 0
+        }
     }
 
     // MARK: - Set filter bar
@@ -195,9 +217,6 @@ struct FlashCardView: View {
 
             if isFront {
                 VStack(spacing: 12) {
-                    Text("세트 \(word.set)\(word.isPending ? " · 진행중" : "")")
-                        .font(.caption).foregroundStyle(.secondary)
-
                     Text(word.word)
                         .font(.system(size: 32, weight: .bold))
                         .foregroundStyle(Color(hex: "#e8c547"))
