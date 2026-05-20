@@ -217,13 +217,7 @@ struct SetManagerView: View {
         let key = isPendingSection ? -1 : setNum
 
         Section {
-            if expandedSet == key {
-                ForEach(setWords) { word in
-                    wordRow(word, color: color)
-                }
-                .onDelete { offsets in deleteWords(at: offsets, in: setWords) }
-            }
-        } header: {
+            // 세트 헤더 row — 왼쪽 스와이프로 삭제
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     expandedSet = expandedSet == key ? nil : key
@@ -254,18 +248,26 @@ struct SetManagerView: View {
 
                     Image(systemName: expandedSet == key ? "chevron.up" : "chevron.down")
                         .font(.caption).foregroundStyle(.secondary)
-
-                    Button { deleteSetKey = key } label: {
-                        Image(systemName: "trash")
-                            .font(.caption).foregroundStyle(Color(hex: "#ff6b6b"))
-                    }
-                    .buttonStyle(.plain)
                 }
                 .padding(.vertical, 4)
             }
             .buttonStyle(.plain)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive) {
+                    deleteSetKey = key
+                } label: {
+                    Label("삭제", systemImage: "trash")
+                }
+            }
+            .listRowBackground(Color(hex: "#1a1828"))
+
+            if expandedSet == key {
+                ForEach(setWords) { word in
+                    wordRow(word, color: color)
+                }
+                .onDelete { offsets in deleteWords(at: offsets, in: setWords) }
+            }
         }
-        .listRowBackground(Color(hex: "#1a1828"))
     }
 
     @ViewBuilder
