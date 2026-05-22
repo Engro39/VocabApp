@@ -35,6 +35,7 @@ struct SetManagerView: View {
     @State private var expandedSet: Int? = nil
     @State private var editingWord: Word? = nil
     @State private var deleteSetKey: Int? = nil      // nil = 미표시, -1 = 진행중, 1+ = 세트번호
+    @State private var sortDescending: Bool = true   // true = 최신순(높은 번호 위), false = 오름차순
 
     // Export
     @State private var exportDoc: VocabDocument? = nil
@@ -55,6 +56,9 @@ struct SetManagerView: View {
     private var completedSets: [Int] {
         Array(Set(allWords.filter { !$0.isPending }.map(\.set))).sorted()
     }
+    private var displayedSets: [Int] {
+        sortDescending ? completedSets.reversed() : completedSets
+    }
     private var pendingWords: [Word] {
         allWords.filter { $0.isPending }.sorted { $0.addedDate < $1.addedDate }
     }
@@ -63,10 +67,10 @@ struct SetManagerView: View {
     }
 
     // MARK: - Renumber helper
-    // 완성 세트를 addedDate 오름차순으로 1, 2, 3... 재부여
+    // 완성 세트를 오름차순 번호 1, 2, 3... 으로 재부여 (표시 순서와 무관, 번호 압축용)
     // pending 단어는 항상 max + 1 세트 번호 유지
     private func renumberSets() {
-        let sortedSets = completedSets  // 이미 오름차순 정렬됨
+        let sortedSets = completedSets  // 오름차순 보장
         for (newNum, oldNum) in sortedSets.enumerated() {
             let target = newNum + 1
             if oldNum != target {
@@ -95,7 +99,7 @@ struct SetManagerView: View {
                     }
                 } else {
                     List {
-                        ForEach(completedSets, id: \.self) { setNum in
+                        ForEach(displayedSets, id: \.self) { setNum in
                             setSection(setNum, isPendingSection: false)
                         }
                         if !pendingWords.isEmpty {
@@ -197,6 +201,16 @@ struct SetManagerView: View {
             } label: {
                 Image(systemName: "arrow.up.circle")
                     .foregroundStyle(Color(hex: "#e8c547"))
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    sortDescending.toggle()
+                }
+            } label: {
+                Image(systemName: sortDescending ? "arrow.up.arrow.down.circle.fill" : "arrow.up.arrow.down.circle")
+                    .foregroundStyle(Color(hex: "#a78bfa"))
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
