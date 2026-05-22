@@ -325,28 +325,36 @@ struct FlashCardView: View {
     // MARK: - Word chips
     @ViewBuilder
     private var wordChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(Array(displayList.enumerated()), id: \.offset) { i, w in
-                    let color = Self.colors[w.set % Self.colors.count]
-                    let selected = i == currentIndex
-                    Button {
-                        currentIndex = i
-                        isFlipped = false
-                        flipDeg = 0
-                        savePosition()
-                    } label: {
-                        Text(w.word)
-                            .font(.caption)
-                            .padding(.horizontal, 10).padding(.vertical, 4)
-                            .background(selected ? color : Color.clear)
-                            .foregroundStyle(selected ? Color(hex: "#0f0e17") : color)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(color, lineWidth: 1))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(Array(displayList.enumerated()), id: \.offset) { i, w in
+                        let color = Self.colors[w.set % Self.colors.count]
+                        let selected = i == currentIndex
+                        Button {
+                            currentIndex = i
+                            isFlipped = false
+                            flipDeg = 0
+                            savePosition()
+                        } label: {
+                            Text(w.word)
+                                .font(.caption)
+                                .padding(.horizontal, 10).padding(.vertical, 4)
+                                .background(selected ? color : Color.clear)
+                                .foregroundStyle(selected ? Color(hex: "#0f0e17") : color)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(color, lineWidth: 1))
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        .id(i)
                     }
                 }
+                .padding(.vertical, 4)
             }
-            .padding(.vertical, 4)
+            .onChange(of: currentIndex) { newIndex in
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(newIndex, anchor: .center)
+                }
+            }
         }
     }
 
