@@ -99,11 +99,11 @@ struct SetManagerView: View {
                     }
                 } else {
                     List {
-                        ForEach(displayedSets, id: \.self) { setNum in
-                            setSection(setNum, isPendingSection: false)
-                        }
                         if !pendingWords.isEmpty {
                             setSection(-1, isPendingSection: true)
+                        }
+                        ForEach(displayedSets, id: \.self) { setNum in
+                            setSection(setNum, isPendingSection: false)
                         }
                     }
                     .listStyle(.insetGrouped)

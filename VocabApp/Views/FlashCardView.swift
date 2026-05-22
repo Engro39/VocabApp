@@ -182,7 +182,7 @@ struct FlashCardView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 setChip(label: "ALL", value: 0)
-                ForEach(completedSets, id: \.self) { s in
+                ForEach(completedSets.reversed(), id: \.self) { s in
                     setChip(label: "세트 \(s)", value: s)
                 }
                 if hasPending {
