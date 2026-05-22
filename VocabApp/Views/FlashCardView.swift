@@ -473,6 +473,7 @@ struct WordDetailSheet: View {
                                 Text(word.word)
                                     .font(.system(size: 28, weight: .bold))
                                     .foregroundStyle(Color(hex: "#e8c547"))
+                                    .textSelection(.enabled)
                                 Button { SpeechService.shared.speak(word.word) } label: {
                                     Image(systemName: "speaker.wave.2")
                                         .foregroundStyle(.secondary).font(.title3)
@@ -480,6 +481,7 @@ struct WordDetailSheet: View {
                             }
                             HStack(spacing: 8) {
                                 Text(word.pronunciation).font(.subheadline).foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
                                 Text(word.partOfSpeech)
                                     .font(.caption.bold())
                                     .padding(.horizontal, 8).padding(.vertical, 3)
@@ -497,12 +499,14 @@ struct WordDetailSheet: View {
                             Text(word.meaning)
                                 .font(.title3.bold())
                                 .foregroundStyle(Color(hex: "#4ecdc4"))
+                                .textSelection(.enabled)
                         }
 
                         if !word.detailedDefinition.isEmpty {
                             detailCard(title: "Definition", icon: "book") {
                                 Text(word.detailedDefinition)
                                     .font(.subheadline).foregroundStyle(.primary).lineSpacing(4)
+                                    .textSelection(.enabled)
                             }
                         }
 
@@ -515,6 +519,7 @@ struct WordDetailSheet: View {
                                                 .font(.caption.bold()).foregroundStyle(.secondary).frame(width: 16)
                                             Text(ex)
                                                 .font(.subheadline).foregroundStyle(.primary).lineSpacing(3)
+                                                .textSelection(.enabled)
                                             Spacer()
                                             Button { SpeechService.shared.speak(ex) } label: {
                                                 Image(systemName: "speaker.wave.2")
@@ -533,6 +538,7 @@ struct WordDetailSheet: View {
                             detailCard(title: "뉘앙스 & 사용 팁", icon: "lightbulb") {
                                 Text(word.nuance)
                                     .font(.subheadline).foregroundStyle(.primary).lineSpacing(4)
+                                    .textSelection(.enabled)
                             }
                         }
 
@@ -545,6 +551,14 @@ struct WordDetailSheet: View {
                                         .background(Color(hex: "#fb923c").opacity(0.15))
                                         .foregroundStyle(Color(hex: "#fb923c"))
                                         .clipShape(Capsule())
+                                        .onLongPressGesture {
+                                            NotificationCenter.default.post(
+                                                name: .searchRelatedWord,
+                                                object: nil,
+                                                userInfo: ["word": w]
+                                            )
+                                            dismiss()
+                                        }
                                 }
                             }
                         }

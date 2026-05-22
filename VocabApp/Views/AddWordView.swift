@@ -58,6 +58,11 @@ struct AddWordView: View {
             .navigationTitle("새 단어")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .onReceive(NotificationCenter.default.publisher(for: .searchRelatedWord)) { notification in
+                guard let word = notification.userInfo?["word"] as? String else { return }
+                inputWord = word
+                Task { await generate() }
+            }
         }
     }
 

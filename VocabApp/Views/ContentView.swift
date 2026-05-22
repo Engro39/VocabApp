@@ -23,5 +23,8 @@ struct ContentView: View {
         }
         .tint(Color(hex: "#e8c547"))
         .preferredColorScheme(.dark)
+        .onReceive(NotificationCenter.default.publisher(for: .searchRelatedWord)) { _ in
+            selectedTab = 1  // 새 단어 탭으로 전환
+        }
     }
 }
