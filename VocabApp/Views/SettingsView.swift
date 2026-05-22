@@ -5,7 +5,8 @@ struct SettingsView: View {
     @State private var isRevealed: Bool = false
     @State private var saved: Bool = false
     @AppStorage("setBatchSize") private var setBatchSize: Int = 20
-    @AppStorage("autoPlayInterval") private var autoPlayInterval: Int = 3
+    @AppStorage("autoPlayMode")  private var autoPlayMode: String = "timer"
+    @AppStorage("autoPlayCount") private var autoPlayCount: Int = 3
 
     var body: some View {
         NavigationStack {
@@ -45,31 +46,44 @@ struct SettingsView: View {
 
                     // ── 자동 넘기기 설정 ─────────────────────────
                     Section {
+                        // 모드 선택
+                        Picker("모드", selection: $autoPlayMode) {
+                            Text("표시 시간").tag("timer")
+                            Text("발음 읽어주기").tag("tts")
+                        }
+                        .pickerStyle(.segmented)
+                        .listRowBackground(Color(hex: "#1a1828"))
+
+                        // 횟수 / 시간 슬라이더
                         VStack(alignment: .leading, spacing: 10) {
                             HStack {
-                                Text("카드 표시 시간")
+                                Text(autoPlayMode == "tts" ? "반복 횟수" : "카드 표시 시간")
                                     .foregroundStyle(.white)
                                 Spacer()
-                                Text("\(autoPlayInterval)초")
+                                Text(autoPlayMode == "tts" ? "\(autoPlayCount)회" : "\(autoPlayCount)초")
                                     .font(.headline.bold())
                                     .foregroundStyle(Color(hex: "#e8c547"))
                             }
                             Slider(value: Binding(
-                                get: { Double(autoPlayInterval) },
-                                set: { autoPlayInterval = Int($0) }
+                                get: { Double(autoPlayCount) },
+                                set: { autoPlayCount = Int($0) }
                             ), in: 1...10, step: 1)
                             .tint(Color(hex: "#e8c547"))
                             HStack {
-                                Text("1초").font(.caption).foregroundStyle(.secondary)
+                                Text(autoPlayMode == "tts" ? "1회" : "1초")
+                                    .font(.caption).foregroundStyle(.secondary)
                                 Spacer()
-                                Text("10초").font(.caption).foregroundStyle(.secondary)
+                                Text(autoPlayMode == "tts" ? "10회" : "10초")
+                                    .font(.caption).foregroundStyle(.secondary)
                             }
                         }
                         .listRowBackground(Color(hex: "#1a1828"))
                     } header: {
                         Text("자동 넘기기").foregroundStyle(Color(hex: "#e8c547"))
                     } footer: {
-                        Text("플레이 버튼을 누르면 설정한 시간마다 다음 카드로 자동으로 넘어갑니다.")
+                        Text(autoPlayMode == "tts"
+                             ? "단어를 설정한 횟수만큼 읽어준 뒤 다음 카드로 넘어갑니다. 언어는 단어에 맞게 자동 감지됩니다."
+                             : "플레이 버튼을 누르면 설정한 시간마다 다음 카드로 자동으로 넘어갑니다.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
 

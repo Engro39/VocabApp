@@ -5,7 +5,8 @@ import AVFoundation
 struct FlashCardView: View {
     @Query(sort: \Word.addedDate) private var allWords: [Word]
 
-    @AppStorage("autoPlayInterval") private var autoPlayInterval: Int = 3
+    @AppStorage("autoPlayMode")  private var autoPlayMode: String = "timer"  // "timer" | "tts"
+    @AppStorage("autoPlayCount") private var autoPlayCount: Int = 3
 
     @State private var filterSet: Int = 0      // 0 = ALL, -1 = 진행중
     @State private var shuffled: Bool = false
@@ -396,11 +397,39 @@ struct FlashCardView: View {
     private func startAutoPlay() {
         guard !displayList.isEmpty else { return }
         isAutoPlaying = true
-        let interval = Double(autoPlayInterval)
+        let count = autoPlayCount
+        let mode  = autoPlayMode
+
         autoPlayTask = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
-                guard !Task.isCancelled else { break }
+                // 현재 카드 단어 읽기
+                let wordText: String = await MainActor.run {
+                    guard isAutoPlaying, !displayList.isEmpty,
+                          currentIndex < displayList.count else { return "" }
+                    return displayList[currentIndex].word
+                }
+                guard !wordText.isEmpty, !Task.isCancelled else { break }
+
+                if mode == "tts" {
+                    // 발음 읽어주기 모드: N번 반복 후 다음 카드
+                    let lang = SpeechService.shared.detectLanguage(wordText)
+                    for i in 0..<count {
+                        guard !Task.isCancelled else { return }
+                        await SpeechService.shared.speakAndWait(wordText, language: lang)
+                        if i < count - 1 {
+                            // 반복 사이 0.5초 간격
+                            try? await Task.sleep(nanoseconds: 500_000_000)
+                        }
+                    }
+                    // 다음 카드로 넘기기 전 0.4초 여유
+                    guard !Task.isCancelled else { return }
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                } else {
+                    // 표시 시간 모드: N초 후 다음 카드
+                    try? await Task.sleep(nanoseconds: UInt64(Double(count) * 1_000_000_000))
+                }
+
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
                     guard isAutoPlaying, !displayList.isEmpty else { return }
                     if currentIndex < displayList.count - 1 {
@@ -419,6 +448,7 @@ struct FlashCardView: View {
         isAutoPlaying = false
         autoPlayTask?.cancel()
         autoPlayTask = nil
+        SpeechService.shared.stop()  // 진행 중인 TTS 즉시 중단
     }
 
     private func speak(_ text: String) {
