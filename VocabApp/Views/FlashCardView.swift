@@ -33,6 +33,16 @@ struct FlashCardView: View {
         Array(Set(allWords.filter { !$0.isPending }.map(\.set))).sorted()
     }
 
+    // MARK: - Position persistence (UserDefaults)
+    private func indexKey(_ set: Int) -> String { "fc_idx_\(set)" }
+    private let kLastFilterSet = "fc_lastFilterSet"
+
+    private func savePosition() {
+        guard !shuffled else { return }
+        UserDefaults.standard.set(currentIndex, forKey: indexKey(filterSet))
+        UserDefaults.standard.set(filterSet, forKey: kLastFilterSet)
+    }
+
     private var hasPending: Bool {
         allWords.contains { $0.isPending }
     }
@@ -116,8 +126,19 @@ struct FlashCardView: View {
             .onChange(of: filterSet) { rebuildList() }
             .onAppear {
                 guard !hasInitialized else { return }
-                rebuildList()
                 hasInitialized = true
+
+                // 마지막으로 보던 세트 복원
+                let savedSet = UserDefaults.standard.integer(forKey: kLastFilterSet)
+                let valid = Set([0, -1] + completedSets)
+                let targetSet = valid.contains(savedSet) ? savedSet : 0
+
+                if targetSet != filterSet {
+                    // filterSet 변경 → onChange → rebuildList (UD에서 인덱스 복원)
+                    filterSet = targetSet
+                } else {
+                    rebuildList()   // filterSet 동일 → onChange 미발생, 직접 호출
+                }
             }
             .sheet(item: $showingDetail) { word in
                 WordDetailSheet(word: word)
@@ -142,6 +163,12 @@ struct FlashCardView: View {
         if let pid = previousID,
            let idx = displayList.firstIndex(where: { $0.persistentModelID == pid }) {
             currentIndex = idx
+        } else if !preservePosition && !shuffled && !displayList.isEmpty {
+            // 비셔플·필터 전환 또는 초기 진입 시 UserDefaults에서 인덱스 복원
+            let saved = UserDefaults.standard.integer(forKey: indexKey(filterSet))
+            currentIndex = min(saved, displayList.count - 1)
+            isFlipped = false
+            flipDeg = 0
         } else {
             currentIndex = 0
             isFlipped = false
@@ -173,7 +200,14 @@ struct FlashCardView: View {
             : Self.colors[value % Self.colors.count]
         let selected = filterSet == value
         Button {
-            filterSet = value
+            if filterSet != value {
+                // 나가는 세트의 현재 인덱스 저장
+                if !shuffled {
+                    UserDefaults.standard.set(currentIndex, forKey: indexKey(filterSet))
+                }
+                filterSet = value
+                UserDefaults.standard.set(value, forKey: kLastFilterSet)
+            }
         } label: {
             Text(label)
                 .font(.caption.bold())
@@ -300,6 +334,7 @@ struct FlashCardView: View {
                         currentIndex = i
                         isFlipped = false
                         flipDeg = 0
+                        savePosition()
                     } label: {
                         Text(w.word)
                             .font(.caption)
@@ -325,12 +360,14 @@ struct FlashCardView: View {
         guard !displayList.isEmpty else { return }
         isFlipped = false; flipDeg = 0
         currentIndex = (currentIndex + 1) % displayList.count
+        savePosition()
     }
 
     private func goPrev() {
         guard !displayList.isEmpty else { return }
         isFlipped = false; flipDeg = 0
         currentIndex = (currentIndex - 1 + displayList.count) % displayList.count
+        savePosition()
     }
 
     private func speak(_ text: String) {
