@@ -5,6 +5,7 @@ struct SettingsView: View {
     @State private var isRevealed: Bool = false
     @State private var saved: Bool = false
     @AppStorage("setBatchSize") private var setBatchSize: Int = 20
+    @AppStorage("autoPlayInterval") private var autoPlayInterval: Int = 3
 
     var body: some View {
         NavigationStack {
@@ -39,6 +40,36 @@ struct SettingsView: View {
                         Text("세트 설정").foregroundStyle(Color(hex: "#e8c547"))
                     } footer: {
                         Text("새로 만들어지는 세트에만 적용됩니다. 기존 세트는 변경되지 않습니다.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+
+                    // ── 자동 넘기기 설정 ─────────────────────────
+                    Section {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text("카드 표시 시간")
+                                    .foregroundStyle(.white)
+                                Spacer()
+                                Text("\(autoPlayInterval)초")
+                                    .font(.headline.bold())
+                                    .foregroundStyle(Color(hex: "#e8c547"))
+                            }
+                            Slider(value: Binding(
+                                get: { Double(autoPlayInterval) },
+                                set: { autoPlayInterval = Int($0) }
+                            ), in: 1...10, step: 1)
+                            .tint(Color(hex: "#e8c547"))
+                            HStack {
+                                Text("1초").font(.caption).foregroundStyle(.secondary)
+                                Spacer()
+                                Text("10초").font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .listRowBackground(Color(hex: "#1a1828"))
+                    } header: {
+                        Text("자동 넘기기").foregroundStyle(Color(hex: "#e8c547"))
+                    } footer: {
+                        Text("플레이 버튼을 누르면 설정한 시간마다 다음 카드로 자동으로 넘어갑니다.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
 

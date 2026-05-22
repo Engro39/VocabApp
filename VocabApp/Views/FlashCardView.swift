@@ -5,6 +5,8 @@ import AVFoundation
 struct FlashCardView: View {
     @Query(sort: \Word.addedDate) private var allWords: [Word]
 
+    @AppStorage("autoPlayInterval") private var autoPlayInterval: Int = 3
+
     @State private var filterSet: Int = 0      // 0 = ALL, -1 = 진행중
     @State private var shuffled: Bool = false
     @State private var displayList: [Word] = []  // 셔플 상태 고정 리스트
@@ -13,6 +15,8 @@ struct FlashCardView: View {
     @State private var flipDeg: Double = 0
     @State private var showingDetail: Word? = nil
     @State private var hasInitialized: Bool = false
+    @State private var isAutoPlaying: Bool = false
+    @State private var autoPlayTask: Task<Void, Never>? = nil
 
     // 10개 고정 색상, set % 10 으로 순환 (세트 1 = 세트 11, 세트 2 = 세트 12, ...)
     static let colors: [Color] = [
@@ -89,11 +93,16 @@ struct FlashCardView: View {
 
                     Spacer(minLength: 16)
 
-                    HStack(spacing: 48) {
+                    HStack(spacing: 28) {
                         Button(action: goPrev) {
                             Image(systemName: "chevron.left.circle")
                                 .font(.system(size: 40))
                                 .foregroundStyle(Color(hex: "#e8c547").opacity(0.7))
+                        }
+                        Button(action: toggleAutoPlay) {
+                            Image(systemName: isAutoPlaying ? "stop.circle.fill" : "play.circle.fill")
+                                .font(.system(size: 48))
+                                .foregroundStyle(Color(hex: "#e8c547"))
                         }
                         Button(action: goNext) {
                             Image(systemName: "chevron.right.circle")
@@ -123,7 +132,8 @@ struct FlashCardView: View {
                 }
             }
             .onChange(of: allWords) { rebuildList(preservePosition: true) }
-            .onChange(of: filterSet) { rebuildList() }
+            .onChange(of: filterSet) { stopAutoPlay(); rebuildList() }
+            .onDisappear { stopAutoPlay() }
             .onAppear {
                 guard !hasInitialized else { return }
                 hasInitialized = true
@@ -376,6 +386,39 @@ struct FlashCardView: View {
         isFlipped = false; flipDeg = 0
         currentIndex = (currentIndex - 1 + displayList.count) % displayList.count
         savePosition()
+    }
+
+    // MARK: - Auto play
+    private func toggleAutoPlay() {
+        isAutoPlaying ? stopAutoPlay() : startAutoPlay()
+    }
+
+    private func startAutoPlay() {
+        guard !displayList.isEmpty else { return }
+        isAutoPlaying = true
+        let interval = Double(autoPlayInterval)
+        autoPlayTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                guard !Task.isCancelled else { break }
+                await MainActor.run {
+                    guard isAutoPlaying, !displayList.isEmpty else { return }
+                    if currentIndex < displayList.count - 1 {
+                        isFlipped = false; flipDeg = 0
+                        currentIndex += 1
+                        savePosition()
+                    } else {
+                        stopAutoPlay()  // 마지막 카드에서 정지
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopAutoPlay() {
+        isAutoPlaying = false
+        autoPlayTask?.cancel()
+        autoPlayTask = nil
     }
 
     private func speak(_ text: String) {
