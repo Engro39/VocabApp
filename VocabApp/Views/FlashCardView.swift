@@ -181,12 +181,12 @@ struct FlashCardView: View {
     private var setFilterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
+                if hasPending {
+                    setChip(label: "진행중", value: -1)
+                }
                 setChip(label: "ALL", value: 0)
                 ForEach(completedSets.reversed(), id: \.self) { s in
                     setChip(label: "세트 \(s)", value: s)
-                }
-                if hasPending {
-                    setChip(label: "진행중", value: -1)
                 }
             }
             .padding(.vertical, 4)
