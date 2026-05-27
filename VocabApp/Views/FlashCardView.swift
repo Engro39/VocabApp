@@ -19,20 +19,6 @@ struct FlashCardView: View {
     @State private var isAutoPlaying: Bool = false
     @State private var autoPlayTask: Task<Void, Never>? = nil
 
-    // 10개 고정 색상, set % 10 으로 순환 (세트 1 = 세트 11, 세트 2 = 세트 12, ...)
-    static let colors: [Color] = [
-        Color(hex: "#e8c547"),  // 0, 10, 20…
-        Color(hex: "#ff6b6b"),  // 1, 11, 21…
-        Color(hex: "#4ecdc4"),  // 2, 12, 22…
-        Color(hex: "#a78bfa"),  // 3, 13, 23…
-        Color(hex: "#fb923c"),  // 4, 14, 24…
-        Color(hex: "#34d399"),  // 5, 15, 25…
-        Color(hex: "#f472b6"),  // 6, 16, 26…
-        Color(hex: "#60a5fa"),  // 7, 17, 27…
-        Color(hex: "#facc15"),  // 8, 18, 28…
-        Color(hex: "#c084fc"),  // 9, 19, 29…
-    ]
-
     // 완성된 세트 번호 목록
     private var completedSets: [Int] {
         Array(Set(allWords.filter { !$0.isPending }.map(\.set))).sorted()
@@ -206,7 +192,7 @@ struct FlashCardView: View {
     private func setChip(label: String, value: Int) -> some View {
         let color: Color = value == -1 ? Color(hex: "#00ffcc")
             : value == 0  ? Color(hex: "#e8c547")
-            : Self.colors[value % Self.colors.count]
+            : Color.setColor(for: value)
         let selected = filterSet == value
         Button {
             if filterSet != value {
@@ -248,7 +234,7 @@ struct FlashCardView: View {
 
     @ViewBuilder
     private func cardFace(word: Word, isFront: Bool) -> some View {
-        let setColor = Self.colors[word.set % Self.colors.count]
+        let setColor = Color.setColor(for: word.set)
         ZStack {
             RoundedRectangle(cornerRadius: 20)
                 .fill(isFront
@@ -338,7 +324,7 @@ struct FlashCardView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     ForEach(Array(displayList.enumerated()), id: \.offset) { i, w in
-                        let color = Self.colors[w.set % Self.colors.count]
+                        let color = Color.setColor(for: w.set)
                         let selected = i == currentIndex
                         Button {
                             currentIndex = i
@@ -359,7 +345,7 @@ struct FlashCardView: View {
                 }
                 .padding(.vertical, 4)
             }
-            .onChange(of: currentIndex) { newIndex in
+            .onChange(of: currentIndex) { _, newIndex in
                 withAnimation(.easeInOut(duration: 0.3)) {
                     proxy.scrollTo(newIndex, anchor: .center)
                 }

@@ -47,9 +47,7 @@ struct ListeningPracticeView: View {
         recentTopicsRaw = list.prefix(8).joined(separator: ",")
     }
 
-    private var hasAPIKey: Bool {
-        !(KeychainService.shared.loadAPIKey() ?? "").isEmpty
-    }
+    private var hasAPIKey: Bool { KeychainService.shared.hasAPIKey }
 
     var body: some View {
         NavigationStack {

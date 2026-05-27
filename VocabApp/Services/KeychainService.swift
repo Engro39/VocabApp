@@ -38,6 +38,8 @@ final class KeychainService {
         return String(data: data, encoding: .utf8)
     }
 
+    var hasAPIKey: Bool { !(loadAPIKey() ?? "").isEmpty }
+
     func deleteAPIKey() {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

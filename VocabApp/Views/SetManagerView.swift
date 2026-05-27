@@ -215,7 +215,7 @@ struct SetManagerView: View {
         let setWords = isPendingSection ? pendingWords : words(for: setNum)
         let color: Color = isPendingSection
             ? Color(hex: "#00ffcc")
-            : FlashCardView.colors[setNum % FlashCardView.colors.count]
+            : Color.setColor(for: setNum)
         let key = isPendingSection ? -1 : setNum
 
         Section {
@@ -440,8 +440,8 @@ struct SetManagerView: View {
             let examplesJSON       = fields.count > 8  ? fields[8] : "[]"
             let nuance             = fields.count > 9  ? fields[9] : ""
             let relatedWordsJSON   = fields.count > 10 ? fields[10] : "[]"
-            let examples     = decodeJSONArray(examplesJSON)
-            let relatedWords = decodeJSONArray(relatedWordsJSON)
+            let examples     = Word.decodeJSON(examplesJSON)
+            let relatedWords = Word.decodeJSON(relatedWordsJSON)
             context.insert(Word(
                 word: word, meaning: meaning, exampleEn: example,
                 set: originalSet + setOffset, isPending: isPending,
@@ -479,12 +479,6 @@ struct SetManagerView: View {
         }
         fields.append(current)
         return fields
-    }
-
-    private func decodeJSONArray(_ json: String) -> [String] {
-        guard let data = json.data(using: .utf8),
-              let arr = try? JSONDecoder().decode([String].self, from: data) else { return [] }
-        return arr
     }
 
     private func showError(_ msg: String) {

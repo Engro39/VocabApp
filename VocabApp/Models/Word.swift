@@ -48,7 +48,7 @@ final class Word {
         self.relatedWordsJSON = Self.encodeJSON(relatedWords)
     }
 
-    private static func decodeJSON(_ json: String) -> [String] {
+    static func decodeJSON(_ json: String) -> [String] {
         guard let data = json.data(using: .utf8),
               let arr = try? JSONDecoder().decode([String].self, from: data) else { return [] }
         return arr

@@ -32,9 +32,7 @@ struct AddWordView: View {
         return (completedWords.first?.set ?? 0) + 1
     }
 
-    private var hasAPIKey: Bool {
-        !(KeychainService.shared.loadAPIKey() ?? "").isEmpty
-    }
+    private var hasAPIKey: Bool { KeychainService.shared.hasAPIKey }
 
     var body: some View {
         ZStack {
