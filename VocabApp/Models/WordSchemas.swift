@@ -26,16 +26,51 @@ enum WordSchemaV1: VersionedSchema {
     }
 }
 
-// MARK: - Schema V2 (현재 - 상세 필드 추가, 배열은 JSON String으로 저장)
+// MARK: - Schema V2 (상세 필드 추가, 배열은 JSON String으로 저장)
 enum WordSchemaV2: VersionedSchema {
     static var versionIdentifier = Schema.Version(2, 0, 0)
     static var models: [any PersistentModel.Type] { [Word.self] }
 }
 
+// MARK: - Schema V3 (ListeningRecord 추가 — userAnswer/attemptCount 없는 스냅샷)
+enum WordSchemaV3: VersionedSchema {
+    static var versionIdentifier = Schema.Version(3, 0, 0)
+    static var models: [any PersistentModel.Type] { [Word.self, ListeningRecord.self] }
+
+    @Model
+    final class ListeningRecord {
+        var sentence: String
+        var topic: String
+        var difficulty: String
+        var practiceDate: Date
+        var isCorrect: Bool
+
+        init(sentence: String, topic: String, difficulty: String, isCorrect: Bool) {
+            self.sentence = sentence
+            self.topic = topic
+            self.difficulty = difficulty
+            self.practiceDate = Date()
+            self.isCorrect = isCorrect
+        }
+    }
+}
+
+// MARK: - Schema V4 (ListeningRecord에 userAnswer, attemptCount 추가)
+enum WordSchemaV4: VersionedSchema {
+    static var versionIdentifier = Schema.Version(4, 0, 0)
+    static var models: [any PersistentModel.Type] { [Word.self, ListeningRecord.self] }
+}
+
 // MARK: - Migration Plan
 enum WordMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [WordSchemaV1.self, WordSchemaV2.self] }
+    static var schemas: [any VersionedSchema.Type] {
+        [WordSchemaV1.self, WordSchemaV2.self, WordSchemaV3.self, WordSchemaV4.self]
+    }
     static var stages: [MigrationStage] {
-        [.lightweight(fromVersion: WordSchemaV1.self, toVersion: WordSchemaV2.self)]
+        [
+            .lightweight(fromVersion: WordSchemaV1.self, toVersion: WordSchemaV2.self),
+            .lightweight(fromVersion: WordSchemaV2.self, toVersion: WordSchemaV3.self),
+            .lightweight(fromVersion: WordSchemaV3.self, toVersion: WordSchemaV4.self)
+        ]
     }
 }

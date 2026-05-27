@@ -337,7 +337,7 @@
 				B03252F82FBC9FC0003C92BD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 		B03252F92FBC9FC0003C92BD /* Build configuration list for PBXNativeTarget "VocabApp" */ = {
 			isa = XCConfigurationList;
@@ -346,7 +346,7 @@
 				B03252FB2FBC9FC0003C92BD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
 	};

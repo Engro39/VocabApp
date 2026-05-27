@@ -59,10 +59,9 @@ struct FlashCardView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color(hex: "#0f0e17").ignoresSafeArea()
-                VStack(spacing: 0) {
+        ZStack {
+            Color(hex: "#0f0e17").ignoresSafeArea()
+            VStack(spacing: 0) {
                     setFilterBar
                         .padding(.horizontal)
                         .padding(.top, 8)
@@ -154,7 +153,6 @@ struct FlashCardView: View {
             .sheet(item: $showingDetail) { word in
                 WordDetailSheet(word: word)
             }
-        }
     }
 
     // MARK: - Rebuild display list
@@ -400,7 +398,9 @@ struct FlashCardView: View {
         let count = autoPlayCount
         let mode  = autoPlayMode
 
+        SpeechService.shared.lockSession()
         autoPlayTask = Task {
+            defer { SpeechService.shared.unlockSession() }
             while !Task.isCancelled {
                 // 현재 카드 단어 읽기
                 let wordText: String = await MainActor.run {
@@ -421,9 +421,16 @@ struct FlashCardView: View {
                             try? await Task.sleep(nanoseconds: 500_000_000)
                         }
                     }
-                    // 다음 카드로 넘기기 전 0.4초 여유
+                    // 마지막 발음 후 뒷면으로 자동 뒤집기
                     guard !Task.isCancelled else { return }
-                    try? await Task.sleep(nanoseconds: 400_000_000)
+                    await MainActor.run {
+                        if !isFlipped {
+                            withAnimation(.easeInOut(duration: 0.4)) { flipDeg = 180 }
+                            isFlipped = true
+                        }
+                    }
+                    // 뒤집기 애니메이션(0.4s) + 뒷면 표시 여유(3.0s)
+                    try? await Task.sleep(nanoseconds: 3_400_000_000)
                 } else {
                     // 표시 시간 모드: N초 후 다음 카드
                     try? await Task.sleep(nanoseconds: UInt64(Double(count) * 1_000_000_000))
@@ -448,7 +455,8 @@ struct FlashCardView: View {
         isAutoPlaying = false
         autoPlayTask?.cancel()
         autoPlayTask = nil
-        SpeechService.shared.stop()  // 진행 중인 TTS 즉시 중단
+        SpeechService.shared.stop()
+        SpeechService.shared.unlockSession()
     }
 
     private func speak(_ text: String) {

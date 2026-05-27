@@ -54,6 +54,8 @@ final class ClaudeService {
   "nuance": "한국어로 뉘앙스/사용팁/주의사항 2-3문장",
   "relatedWords": ["관련단어1", "관련단어2", "관련단어3"]
 }
+
+주의: 모든 텍스트 필드에서 세미콜론(;)을 절대 사용하지 마세요. 구분이 필요하면 쉼표(,)를 사용하세요.
 """
 
         let body: [String: Any] = [
@@ -86,16 +88,85 @@ final class ClaudeService {
               let obj = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
         else { throw ClaudeError.parseError }
 
+        let sanitize: (String) -> String = { $0.replacingOccurrences(of: ";", with: ",") }
+        let sanitizeArray: ([String]) -> [String] = { $0.map { sanitize($0) } }
+
         return WordDetail(
             word:               obj["word"] as? String ?? input,
             pronunciation:      obj["pronunciation"] as? String ?? "",
             partOfSpeech:       obj["partOfSpeech"] as? String ?? "",
-            meaningKo:          obj["meaningKo"] as? String ?? "",
-            detailedDefinition: obj["detailedDefinition"] as? String ?? "",
-            examples:           obj["examples"] as? [String] ?? [],
-            nuance:             obj["nuance"] as? String ?? "",
-            relatedWords:       obj["relatedWords"] as? [String] ?? []
+            meaningKo:          sanitize(obj["meaningKo"] as? String ?? ""),
+            detailedDefinition: sanitize(obj["detailedDefinition"] as? String ?? ""),
+            examples:           sanitizeArray(obj["examples"] as? [String] ?? []),
+            nuance:             sanitize(obj["nuance"] as? String ?? ""),
+            relatedWords:       sanitizeArray(obj["relatedWords"] as? [String] ?? [])
         )
+    }
+
+    func generateListeningSentence(
+        difficulty: String,
+        topic: String,
+        previousSentences: [String] = []
+    ) async throws -> String {
+        guard let apiKey = KeychainService.shared.loadAPIKey(), !apiKey.isEmpty else {
+            throw ClaudeError.noAPIKey
+        }
+
+        let url = URL(string: "https://api.anthropic.com/v1/messages")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+
+        let wordRange: String
+        switch difficulty {
+        case "beginner":     wordRange = "8 to 12 words"
+        case "intermediate": wordRange = "12 to 18 words"
+        default:             wordRange = "18 to 25 words"
+        }
+
+        var prompt = """
+        You are generating English sentences for a listening practice app. \
+        Be highly creative and varied — use diverse grammatical structures, tenses, \
+        vocabulary, and sentence patterns each time.
+
+        Generate exactly one English sentence with these requirements:
+        - Difficulty: \(difficulty) (\(wordRange))
+        """
+        if !topic.isEmpty {
+            prompt += "\n- Topic: \(topic)"
+        }
+        prompt += "\n- Never repeat similar structure or vocabulary to previous sentences"
+        prompt += "\n- Return only the sentence itself — no quotes, no labels, no explanation"
+
+        if !previousSentences.isEmpty {
+            prompt += "\n\nDo NOT generate sentences similar to these recent examples:\n"
+            prompt += previousSentences.map { "- \($0)" }.joined(separator: "\n")
+        }
+
+        let body: [String: Any] = [
+            "model": "claude-haiku-4-5",
+            "max_tokens": 200,
+            "temperature": 1.0,
+            "messages": [["role": "user", "content": prompt]]
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw ClaudeError.invalidResponse }
+        guard http.statusCode == 200 else {
+            let msg = String(data: data, encoding: .utf8) ?? "Unknown"
+            throw ClaudeError.apiError("HTTP \(http.statusCode): \(msg)")
+        }
+
+        struct AnthropicResponse: Decodable {
+            struct Content: Decodable { let text: String }
+            let content: [Content]
+        }
+        let envelope = try JSONDecoder().decode(AnthropicResponse.self, from: data)
+        guard let text = envelope.content.first?.text else { throw ClaudeError.invalidResponse }
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

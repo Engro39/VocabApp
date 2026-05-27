@@ -19,6 +19,8 @@ struct AddWordView: View {
     @State private var isLoading: Bool = false
     @State private var errorMessage: String = ""
     @State private var showSuccess: Bool = false
+    @State private var duplicateWords: [Word] = []
+    @State private var wordIndexSet: Set<String> = []
 
     private var pendingCount: Int { pendingWords.count }
     private var progress: Double { min(Double(pendingCount) / Double(setBatchSize), 1.0) }
@@ -35,14 +37,14 @@ struct AddWordView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
+        ZStack {
                 Color(hex: "#0f0e17").ignoresSafeArea()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         progressSection
                         if !hasAPIKey { noKeyBanner }
                         inputSection
+                        if !duplicateWords.isEmpty { duplicateWarningBanner }
                         if !errorMessage.isEmpty {
                             messageBanner(text: errorMessage, color: Color(hex: "#ff6b6b"))
                         }
@@ -50,6 +52,7 @@ struct AddWordView: View {
                             messageBanner(text: "추가 완료!", color: Color(hex: "#4ecdc4"), icon: "checkmark.circle.fill")
                         }
                         if let d = detail { detailSection(d) }
+                        if !pendingWords.isEmpty { pendingWordsSection }
                         Spacer(minLength: 40)
                     }
                     .padding()
@@ -63,7 +66,9 @@ struct AddWordView: View {
                 inputWord = word
                 Task { await generate() }
             }
-        }
+            .onAppear { rebuildWordIndex() }
+            .onChange(of: pendingWords)   { rebuildWordIndex() }
+            .onChange(of: completedWords) { rebuildWordIndex() }
     }
 
     // MARK: - Progress bar
@@ -112,6 +117,41 @@ struct AddWordView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
+    // MARK: - Pending Words
+    @ViewBuilder
+    private var pendingWordsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("진행 중인 단어")
+                    .font(.caption.bold())
+                    .foregroundStyle(Color(hex: "#4ecdc4"))
+                Spacer()
+                Text("\(pendingWords.count)개")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            VStack(spacing: 4) {
+                ForEach(pendingWords.reversed()) { word in
+                    HStack(spacing: 8) {
+                        Text(word.word)
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Spacer()
+                        Text(word.meaning)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Color(hex: "#1a1828"))
+                    .cornerRadius(8)
+                }
+            }
+        }
+    }
+
     // MARK: - Banners
     @ViewBuilder
     private var noKeyBanner: some View {
@@ -158,6 +198,9 @@ struct AddWordView: View {
                 .autocorrectionDisabled(false)
                 .textInputAutocapitalization(.never)
                 .onSubmit { Task { await generate() } }
+                .onChange(of: inputWord) { _, newValue in
+                    checkDuplicate(newValue)
+                }
                 .overlay(alignment: .trailing) {
                     if isLoading {
                         ProgressView().padding(.trailing, 12)
@@ -275,6 +318,32 @@ struct AddWordView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
+    // MARK: - Duplicate Warning Banner
+    @ViewBuilder
+    private var duplicateWarningBanner: some View {
+        let setLabels: [String] = Array(
+            Set(duplicateWords.map { $0.isPending ? "진행중 세트" : "세트 \($0.set)" })
+        ).sorted()
+
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Color(hex: "#e8c547"))
+                Text("이미 등록된 단어입니다")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(Color(hex: "#e8c547"))
+            }
+            Text(setLabels.isEmpty ? "미분류 단어로 등록되어 있습니다" : setLabels.joined(separator: ", "))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(hex: "#e8c547").opacity(0.08))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#e8c547").opacity(0.3), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
     // MARK: - Actions
     @MainActor
     private func generate() async {
@@ -329,6 +398,7 @@ struct AddWordView: View {
 
         detail = nil
         inputWord = ""
+        duplicateWords = []
         showSuccess = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             showSuccess = false
@@ -337,6 +407,22 @@ struct AddWordView: View {
 
     private func speak(_ text: String) {
         SpeechService.shared.speak(text)
+    }
+
+    private func rebuildWordIndex() {
+        wordIndexSet = Set((pendingWords + completedWords).map { $0.word.lowercased() })
+    }
+
+    private func checkDuplicate(_ input: String) {
+        let trimmed = input.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { duplicateWords = []; return }
+        if wordIndexSet.contains(trimmed.lowercased()) {
+            duplicateWords = (pendingWords + completedWords).filter {
+                $0.word.compare(trimmed, options: .caseInsensitive) == .orderedSame
+            }
+        } else {
+            duplicateWords = []
+        }
     }
 }
 

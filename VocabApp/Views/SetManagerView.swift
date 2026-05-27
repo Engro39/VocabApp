@@ -88,8 +88,7 @@ struct SetManagerView: View {
 
     // MARK: - Body
     var body: some View {
-        NavigationStack {
-            ZStack {
+        ZStack {
                 Color(hex: "#0f0e17").ignoresSafeArea()
 
                 if allWords.isEmpty {
@@ -184,7 +183,6 @@ struct SetManagerView: View {
                     Text("\(label)의 단어 \(count)개를 삭제하고 세트 번호를 재정렬합니다.")
                 }
             }
-        }
     }
 
     // MARK: - Toolbar
@@ -201,16 +199,6 @@ struct SetManagerView: View {
             } label: {
                 Image(systemName: "arrow.up.circle")
                     .foregroundStyle(Color(hex: "#e8c547"))
-            }
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    sortDescending.toggle()
-                }
-            } label: {
-                Image(systemName: sortDescending ? "arrow.up.arrow.down.circle.fill" : "arrow.up.arrow.down.circle")
-                    .foregroundStyle(Color(hex: "#a78bfa"))
             }
         }
         ToolbarItem(placement: .topBarTrailing) {

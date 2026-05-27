@@ -1,25 +1,37 @@
 import AVFoundation
 import NaturalLanguage
 
-final class SpeechService: NSObject, AVSpeechSynthesizerDelegate {
+final class SpeechService: NSObject {
     static let shared = SpeechService()
-    private let synthesizer = AVSpeechSynthesizer()
-    private var pendingContinuation: CheckedContinuation<Void, Never>? = nil
+
+    private var synthesizer = AVSpeechSynthesizer()
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var sessionLocked = false
 
     private override init() {
         super.init()
         synthesizer.delegate = self
-        configureAudioSession()
-    }
-
-    // MARK: - Audio Session
-    private func configureAudioSession() {
         try? AVAudioSession.sharedInstance().setCategory(
-            .playback, mode: .spokenAudio, options: .duckOthers
+            .playback,
+            mode: .spokenAudio,
+            options: [.allowBluetoothA2DP, .duckOthers]
         )
     }
 
+    // MARK: - Session lock (자동재생 루프용)
+
+    func lockSession() {
+        sessionLocked = true
+        try? AVAudioSession.sharedInstance().setActive(true)
+    }
+
+    func unlockSession() {
+        sessionLocked = false
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
     // MARK: - Language detection
+
     func detectLanguage(_ text: String) -> String {
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(text)
@@ -36,8 +48,7 @@ final class SpeechService: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     // MARK: - Voice selection
-    // 우선순위: Premium > Enhanced > Eloquence > compact > super-compact
-    // com.apple.speech.synthesis.voice.* (로봇 음성) 제외
+
     private func bestVoice(for language: String) -> AVSpeechSynthesisVoice? {
         let prefix = String(language.prefix(2))
         let voices = AVSpeechSynthesisVoice.speechVoices()
@@ -52,58 +63,77 @@ final class SpeechService: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     private func identifierRank(_ id: String) -> Int {
-        if id.contains("eloquence")      { return 3 }
-        if id.contains(".compact.")      { return 2 }
-        if id.contains("super-compact")  { return 1 }
+        if id.contains("eloquence")     { return 3 }
+        if id.contains(".compact.")     { return 2 }
+        if id.contains("super-compact") { return 1 }
         return 0
     }
 
     // MARK: - Speak (fire-and-forget)
-    // 기존 호출부 호환 — en-US 고정
+
     func speak(_ text: String, rate: Float = 0.42) {
-        speak(text, language: "en-US", rate: rate)
+        speak(text, language: detectLanguage(text), rate: rate)
     }
 
     func speak(_ text: String, language: String, rate: Float = 0.42) {
         guard !text.isEmpty else { return }
         synthesizer.stopSpeaking(at: .immediate)
-        try? AVAudioSession.sharedInstance().setActive(true)
+        if !sessionLocked { try? AVAudioSession.sharedInstance().setActive(true) }
+        synthesizer.speak(makeUtterance(text, language: language, rate: rate))
+    }
+
+    // MARK: - Speak and wait (async — 자동 넘기기 TTS 모드용)
+
+    func speakAndWait(_ text: String, language: String = "en-US", rate: Float = 0.42) async {
+        guard !text.isEmpty else { return }
+        await withCheckedContinuation { cont in
+            continuation = cont
+            synthesizer.stopSpeaking(at: .immediate)
+            if !sessionLocked { try? AVAudioSession.sharedInstance().setActive(true) }
+            synthesizer.speak(makeUtterance(text, language: language, rate: rate))
+        }
+    }
+
+    // MARK: - Stop
+
+    func stop() {
+        synthesizer.stopSpeaking(at: .immediate)
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    // MARK: - Private helpers
+
+    private func makeUtterance(_ text: String, language: String, rate: Float) -> AVSpeechUtterance {
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice             = bestVoice(for: language)
         utterance.rate              = rate
         utterance.pitchMultiplier   = 1.0
         utterance.volume            = 1.0
         utterance.preUtteranceDelay = 0.05
-        synthesizer.speak(utterance)
+        return utterance
     }
 
-    // MARK: - Speak and wait (async — 자동 넘기기 TTS 모드용)
-    func speakAndWait(_ text: String, language: String = "en-US", rate: Float = 0.42) async {
-        guard !text.isEmpty else { return }
-        await withCheckedContinuation { cont in
-            pendingContinuation = cont
-            speak(text, language: language, rate: rate)
+    private func deactivateSession() {
+        if !sessionLocked {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         }
     }
+}
 
-    // MARK: - Stop
-    func stop() {
-        synthesizer.stopSpeaking(at: .immediate)
-        // didCancel 델리게이트 → resumePending() → pendingContinuation 재개
-    }
+// MARK: - AVSpeechSynthesizerDelegate
 
-    // MARK: - AVSpeechSynthesizerDelegate
+extension SpeechService: AVSpeechSynthesizerDelegate {
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        resumePending()
+        deactivateSession()
+        let cont = continuation
+        continuation = nil
+        cont?.resume()
     }
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        resumePending()
-    }
-
-    private func resumePending() {
-        let cont = pendingContinuation
-        pendingContinuation = nil
+        deactivateSession()
+        let cont = continuation
+        continuation = nil
         cont?.resume()
     }
 }
