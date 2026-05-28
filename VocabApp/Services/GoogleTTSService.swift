@@ -24,7 +24,8 @@ final class GoogleTTSService {
     // Map from AVSpeech rate via `(avRate / 0.42) * 1.15`:
     //   avRate 0.42 (normal) → 1.15,  avRate 0.30 (slow) → ~0.82
     func speak(_ text: String, rate: Float = 1.15) async throws {
-        isStopped = false
+        // isStopped은 여기서 리셋하지 않음 — 경쟁 조건 방지.
+        // 취소는 SpeechService의 Task.cancel() + URLSession 자동 취소로 처리.
         ttsLog.debug("speak() called — text='\(text.prefix(40))' rate=\(rate)")
 
         let key = KeychainService.shared.loadGoogleTTSKey() ?? ""
@@ -35,6 +36,9 @@ final class GoogleTTSService {
         ttsLog.debug("speak() — key loaded (len=\(key.count))")
 
         let audioData = try await fetchAudio(text: text, rate: Double(rate), apiKey: key)
+
+        // fetch 완료 후 Task 취소 여부 확인 — 새 speak() 호출로 취소됐으면 재생 안 함
+        try Task.checkCancellation()
         ttsLog.debug("speak() — fetchAudio succeeded, audioData=\(audioData.count) bytes")
 
         guard !isStopped else {

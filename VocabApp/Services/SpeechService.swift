@@ -9,6 +9,7 @@ final class SpeechService: NSObject {
     private var synthesizer = AVSpeechSynthesizer()
     private var continuation: CheckedContinuation<Void, Never>?
     private var sessionLocked = false
+    private var googleSpeakTask: Task<Void, Never>?
 
     private override init() {
         super.init()
@@ -40,16 +41,20 @@ final class SpeechService: NSObject {
         let hasGoogle = KeychainService.shared.hasGoogleTTSKey
         speechLog.debug("speak() hasGoogleTTSKey=\(hasGoogle) text='\(text.prefix(40))'")
         synthesizer.stopSpeaking(at: .immediate)
+        googleSpeakTask?.cancel()
+        googleSpeakTask = nil
         GoogleTTSService.shared.stop()
         if !sessionLocked { try? AVAudioSession.sharedInstance().setActive(true) }
 
         if hasGoogle {
-            Task {
+            googleSpeakTask = Task {
                 do {
                     try await GoogleTTSService.shared.speak(text, rate: (rate / 0.42) * 1.15)
                     speechLog.debug("speak() — GoogleTTS succeeded")
                     deactivateSession()
                 } catch {
+                    // Task.isCancelled: 이전 speak() 호출로 취소된 경우 — fallback 하지 않음
+                    guard !Task.isCancelled else { return }
                     speechLog.error("speak() — GoogleTTS failed (\(error)), falling back to AVSpeech")
                     synthesizer.speak(makeUtterance(text, language: language, rate: rate))
                     // delegate handles deactivation
@@ -92,6 +97,8 @@ final class SpeechService: NSObject {
     // MARK: - Stop
 
     func stop() {
+        googleSpeakTask?.cancel()
+        googleSpeakTask = nil
         synthesizer.stopSpeaking(at: .immediate)
         GoogleTTSService.shared.stop()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
