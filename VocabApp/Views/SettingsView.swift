@@ -1,9 +1,16 @@
 import SwiftUI
 
 struct SettingsView: View {
+    // Anthropic
     @State private var apiKey: String = ""
     @State private var isRevealed: Bool = false
     @State private var saved: Bool = false
+    // Google TTS
+    @State private var googleAPIKey: String = ""
+    @State private var isGoogleRevealed: Bool = false
+    @State private var googleSaved: Bool = false
+    @State private var googleKeyExists: Bool = false
+
     @AppStorage("setBatchSize") private var setBatchSize: Int = 20
     @AppStorage("autoPlayMode")  private var autoPlayMode: String = "timer"
     @AppStorage("autoPlayCount") private var autoPlayCount: Int = 3
@@ -46,7 +53,6 @@ struct SettingsView: View {
 
                     // ── 자동 넘기기 설정 ─────────────────────────
                     Section {
-                        // 모드 선택
                         Picker("모드", selection: $autoPlayMode) {
                             Text("표시 시간").tag("timer")
                             Text("발음 읽어주기").tag("tts")
@@ -54,7 +60,6 @@ struct SettingsView: View {
                         .pickerStyle(.segmented)
                         .listRowBackground(Color(hex: "#1a1828"))
 
-                        // 횟수 / 시간 슬라이더
                         VStack(alignment: .leading, spacing: 10) {
                             HStack {
                                 Text(autoPlayMode == "tts" ? "반복 횟수" : "카드 표시 시간")
@@ -82,12 +87,12 @@ struct SettingsView: View {
                         Text("자동 넘기기").foregroundStyle(Color(hex: "#e8c547"))
                     } footer: {
                         Text(autoPlayMode == "tts"
-                             ? "단어를 설정한 횟수만큼 읽어준 뒤 다음 카드로 넘어갑니다. 언어는 단어에 맞게 자동 감지됩니다."
+                             ? "단어를 설정한 횟수만큼 읽어준 뒤 다음 카드로 넘어갑니다."
                              : "플레이 버튼을 누르면 설정한 시간마다 다음 카드로 자동으로 넘어갑니다.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
 
-                    // ── API 키 설정 ──────────────────────────────
+                    // ── Anthropic API 키 ─────────────────────────
                     Section {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Anthropic API Key")
@@ -103,9 +108,7 @@ struct SettingsView: View {
                                     }
                                 }
                                 .textFieldStyle(.plain).foregroundStyle(.white)
-                                Button {
-                                    isRevealed.toggle()
-                                } label: {
+                                Button { isRevealed.toggle() } label: {
                                     Image(systemName: isRevealed ? "eye.slash" : "eye")
                                         .foregroundStyle(.secondary)
                                 }
@@ -114,7 +117,8 @@ struct SettingsView: View {
                         .listRowBackground(Color(hex: "#1a1828"))
 
                         Button {
-                            KeychainService.shared.saveAPIKey(apiKey.trimmingCharacters(in: .whitespaces))
+                            KeychainService.shared.saveAPIKey(
+                                apiKey.trimmingCharacters(in: .whitespaces))
                             saved = true
                             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { saved = false }
                         } label: {
@@ -143,13 +147,86 @@ struct SettingsView: View {
                         Text("키는 iOS Keychain에 안전하게 저장됩니다.\nClaude Haiku 4.5 사용 (단어 1개 ≈ $0.000001)")
                             .font(.caption).foregroundStyle(.secondary)
                     }
+
+                    // ── Google TTS API 키 ────────────────────────
+                    Section {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("Google Cloud API Key")
+                                    .font(.caption.bold()).foregroundStyle(.secondary)
+                                Spacer()
+                                if googleKeyExists {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                        Text("WaveNet 사용 중")
+                                            .font(.caption.bold())
+                                    }
+                                    .foregroundStyle(Color(hex: "#4ecdc4"))
+                                }
+                            }
+                            HStack {
+                                Group {
+                                    if isGoogleRevealed {
+                                        TextField("AIza...", text: $googleAPIKey)
+                                            .autocorrectionDisabled()
+                                            .textInputAutocapitalization(.never)
+                                    } else {
+                                        SecureField("AIza...", text: $googleAPIKey)
+                                    }
+                                }
+                                .textFieldStyle(.plain).foregroundStyle(.white)
+                                Button { isGoogleRevealed.toggle() } label: {
+                                    Image(systemName: isGoogleRevealed ? "eye.slash" : "eye")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .listRowBackground(Color(hex: "#1a1828"))
+
+                        Button {
+                            KeychainService.shared.saveGoogleTTSKey(
+                                googleAPIKey.trimmingCharacters(in: .whitespaces))
+                            googleKeyExists = !googleAPIKey.trimmingCharacters(in: .whitespaces).isEmpty
+                            googleSaved = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { googleSaved = false }
+                        } label: {
+                            HStack {
+                                Image(systemName: "key.fill")
+                                Text(googleSaved ? "저장됨 ✓" : "Keychain에 저장")
+                            }
+                            .frame(maxWidth: .infinity).padding(.vertical, 4)
+                        }
+                        .listRowBackground(Color(hex: "#4ecdc4"))
+                        .foregroundStyle(Color(hex: "#0f0e17"))
+                        .fontWeight(.bold)
+
+                        Button(role: .destructive) {
+                            KeychainService.shared.deleteGoogleTTSKey()
+                            googleAPIKey = ""
+                            googleKeyExists = false
+                            googleSaved = false
+                        } label: {
+                            Label("Google TTS 키 삭제", systemImage: "trash")
+                        }
+                        .listRowBackground(Color(hex: "#1a1828"))
+
+                    } header: {
+                        Text("Google TTS API 키").foregroundStyle(Color(hex: "#e8c547"))
+                    } footer: {
+                        Text("Google Cloud WaveNet 목소리를 사용합니다 (en-US-Wavenet-D).\n키가 없으면 기기 내장 TTS로 재생됩니다.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 .scrollContentBackground(.hidden)
             }
             .navigationTitle("설정")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
-            .onAppear { apiKey = KeychainService.shared.loadAPIKey() ?? "" }
+            .onAppear {
+                apiKey = KeychainService.shared.loadAPIKey() ?? ""
+                googleAPIKey = KeychainService.shared.loadGoogleTTSKey() ?? ""
+                googleKeyExists = KeychainService.shared.hasGoogleTTSKey
+            }
         }
     }
 }

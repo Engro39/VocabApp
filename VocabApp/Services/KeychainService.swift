@@ -4,27 +4,41 @@ import Security
 final class KeychainService {
     static let shared = KeychainService()
     private let service = "com.chulhoon.VocabApp"
-    private let account = "anthropic_api_key"
     private init() {}
 
-    func saveAPIKey(_ key: String) {
-        let data = Data(key.utf8)
+    // MARK: - Anthropic API Key
+
+    func saveAPIKey(_ key: String)   { save(key, account: "anthropic_api_key") }
+    func loadAPIKey() -> String?     { load(account: "anthropic_api_key") }
+    func deleteAPIKey()              { delete(account: "anthropic_api_key") }
+    var hasAPIKey: Bool              { !(loadAPIKey() ?? "").isEmpty }
+
+    // MARK: - Google TTS API Key
+
+    func saveGoogleTTSKey(_ key: String) { save(key, account: "google_tts_api_key") }
+    func loadGoogleTTSKey() -> String?   { load(account: "google_tts_api_key") }
+    func deleteGoogleTTSKey()            { delete(account: "google_tts_api_key") }
+    var hasGoogleTTSKey: Bool            { !(loadGoogleTTSKey() ?? "").isEmpty }
+
+    // MARK: - Private helpers
+
+    private func save(_ value: String, account: String) {
+        let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
-        let attributes: [String: Any] = [kSecValueData as String: data]
-
-        let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        let status = SecItemUpdate(query as CFDictionary,
+                                   [kSecValueData as String: data] as CFDictionary)
         if status == errSecItemNotFound {
-            var newItem = query
-            newItem[kSecValueData as String] = data
-            SecItemAdd(newItem as CFDictionary, nil)
+            var item = query
+            item[kSecValueData as String] = data
+            SecItemAdd(item as CFDictionary, nil)
         }
     }
 
-    func loadAPIKey() -> String? {
+    private func load(account: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -33,14 +47,12 @@ final class KeychainService {
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
         var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess, let data = item as? Data else { return nil }
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+              let data = item as? Data else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
-    var hasAPIKey: Bool { !(loadAPIKey() ?? "").isEmpty }
-
-    func deleteAPIKey() {
+    private func delete(account: String) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
