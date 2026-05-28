@@ -1,4 +1,60 @@
 import SwiftUI
+import SwiftData
+import UniformTypeIdentifiers
+
+// MARK: - Backup file types
+
+private struct BackupDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    var data: Data
+
+    init(data: Data) { self.data = data }
+
+    init(configuration: ReadConfiguration) throws {
+        guard let d = configuration.file.regularFileContents else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        data = d
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
+    }
+}
+
+private struct BackupPayload: Codable {
+    let exportedAt: String
+    let version: Int
+    let words: [WordBackup]
+    let listeningRecords: [RecordBackup]
+}
+
+private struct WordBackup: Codable {
+    let word: String
+    let meaning: String
+    let exampleEn: String
+    let set: Int
+    let isPending: Bool
+    let addedDate: String
+    let pronunciation: String
+    let partOfSpeech: String
+    let detailedDefinition: String
+    let examples: [String]
+    let nuance: String
+    let relatedWords: [String]
+}
+
+private struct RecordBackup: Codable {
+    let sentence: String
+    let topic: String
+    let difficulty: String
+    let practiceDate: String
+    let isCorrect: Bool
+    let userAnswer: String
+    let attemptCount: Int
+}
+
+// MARK: - SettingsView
 
 struct SettingsView: View {
     // Anthropic
@@ -16,6 +72,18 @@ struct SettingsView: View {
     @AppStorage("autoPlayCount") private var autoPlayCount: Int = 3
     @AppStorage("ttsNormalRate") private var ttsNormalRate: Double = 1.1
     @AppStorage("ttsSlowRate")   private var ttsSlowRate: Double = 0.8
+
+    // Backup
+    @Environment(\.modelContext) private var context
+    @Query(sort: \Word.addedDate) private var allWords: [Word]
+    @Query(sort: \ListeningRecord.practiceDate) private var allRecords: [ListeningRecord]
+    @State private var backupDoc: BackupDocument? = nil
+    @State private var backupFilename = "VocabApp_backup.json"
+    @State private var showExporter = false
+    @State private var showImporter = false
+    @State private var backupAlertTitle = ""
+    @State private var backupAlertMessage = ""
+    @State private var showBackupAlert = false
 
     var body: some View {
         NavigationStack {
@@ -137,6 +205,43 @@ struct SettingsView: View {
                         Text("재생 속도").foregroundStyle(Color(hex: "#e8c547"))
                     } footer: {
                         Text("1.0 = 보통 속도 기준. 기본 버튼과 느리게 버튼 각각 독립 조절.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+
+                    // ── 데이터 백업 ────────────────────────────────
+                    Section {
+                        Button {
+                            prepareExport()
+                        } label: {
+                            HStack {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("백업 내보내기")
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                        }
+                        .listRowBackground(Color(hex: "#e8c547"))
+                        .foregroundStyle(Color(hex: "#0f0e17"))
+
+                        Button {
+                            showImporter = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "square.and.arrow.down")
+                                Text("백업 가져오기")
+                                    .fontWeight(.semibold)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                        }
+                        .listRowBackground(Color(hex: "#4ecdc4"))
+                        .foregroundStyle(Color(hex: "#0f0e17"))
+
+                    } header: {
+                        Text("데이터 백업").foregroundStyle(Color(hex: "#e8c547"))
+                    } footer: {
+                        Text("단어와 듣기 기록을 JSON 파일로 내보내거나 가져올 수 있습니다. 가져오기 시 중복되지 않은 항목만 추가됩니다.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
 
@@ -276,6 +381,155 @@ struct SettingsView: View {
                 googleAPIKey = KeychainService.shared.loadGoogleTTSKey() ?? ""
                 googleKeyExists = KeychainService.shared.hasGoogleTTSKey
             }
+            .fileExporter(
+                isPresented: $showExporter,
+                document: backupDoc,
+                contentType: .json,
+                defaultFilename: backupFilename
+            ) { result in
+                if case .failure(let e) = result {
+                    backupAlertTitle = "내보내기 오류"
+                    backupAlertMessage = e.localizedDescription
+                    showBackupAlert = true
+                }
+            }
+            .fileImporter(
+                isPresented: $showImporter,
+                allowedContentTypes: [.json],
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first,
+                          url.startAccessingSecurityScopedResource() else {
+                        backupAlertTitle = "오류"
+                        backupAlertMessage = "파일 접근 권한이 없습니다."
+                        showBackupAlert = true
+                        return
+                    }
+                    runImport(url: url)
+                case .failure(let e):
+                    backupAlertTitle = "오류"
+                    backupAlertMessage = e.localizedDescription
+                    showBackupAlert = true
+                }
+            }
+            .alert(backupAlertTitle, isPresented: $showBackupAlert) {
+                Button("확인", role: .cancel) {}
+            } message: {
+                Text(backupAlertMessage)
+            }
+        }
+    }
+
+    // MARK: - Backup export
+
+    private func prepareExport() {
+        let iso = ISO8601DateFormatter()
+        let wordBackups = allWords.map { w in
+            WordBackup(
+                word: w.word,
+                meaning: w.meaning,
+                exampleEn: w.exampleEn,
+                set: w.set,
+                isPending: w.isPending,
+                addedDate: iso.string(from: w.addedDate),
+                pronunciation: w.pronunciation,
+                partOfSpeech: w.partOfSpeech,
+                detailedDefinition: w.detailedDefinition,
+                examples: w.examples,
+                nuance: w.nuance,
+                relatedWords: w.relatedWords
+            )
+        }
+        let recordBackups = allRecords.map { r in
+            RecordBackup(
+                sentence: r.sentence,
+                topic: r.topic,
+                difficulty: r.difficulty,
+                practiceDate: iso.string(from: r.practiceDate),
+                isCorrect: r.isCorrect,
+                userAnswer: r.userAnswer,
+                attemptCount: r.attemptCount
+            )
+        }
+        let payload = BackupPayload(
+            exportedAt: iso.string(from: Date()),
+            version: 1,
+            words: wordBackups,
+            listeningRecords: recordBackups
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        guard let data = try? encoder.encode(payload) else { return }
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let dateStr = dateFormatter.string(from: Date())
+        backupDoc = BackupDocument(data: data)
+        backupFilename = "VocabApp_backup_\(dateStr).json"
+        showExporter = true
+    }
+
+    // MARK: - Backup import
+
+    private func runImport(url: URL) {
+        defer { url.stopAccessingSecurityScopedResource() }
+        do {
+            let data = try Data(contentsOf: url)
+            let payload = try JSONDecoder().decode(BackupPayload.self, from: data)
+            let iso = ISO8601DateFormatter()
+
+            let existingWords = Set(allWords.map { $0.word.lowercased() })
+            var wordsAdded = 0
+            for wb in payload.words {
+                guard !existingWords.contains(wb.word.lowercased()) else { continue }
+                let w = Word(
+                    word: wb.word,
+                    meaning: wb.meaning,
+                    exampleEn: wb.exampleEn,
+                    set: wb.set,
+                    isPending: wb.isPending,
+                    pronunciation: wb.pronunciation,
+                    partOfSpeech: wb.partOfSpeech,
+                    detailedDefinition: wb.detailedDefinition,
+                    examples: wb.examples,
+                    nuance: wb.nuance,
+                    relatedWords: wb.relatedWords
+                )
+                if let date = iso.date(from: wb.addedDate) { w.addedDate = date }
+                context.insert(w)
+                wordsAdded += 1
+            }
+
+            let existingRecordKeys = Set(
+                allRecords.map { "\(iso.string(from: $0.practiceDate))|\($0.sentence)" }
+            )
+            var recordsAdded = 0
+            for rb in payload.listeningRecords {
+                let key = "\(rb.practiceDate)|\(rb.sentence)"
+                guard !existingRecordKeys.contains(key) else { continue }
+                let r = ListeningRecord(
+                    sentence: rb.sentence,
+                    topic: rb.topic,
+                    difficulty: rb.difficulty,
+                    isCorrect: rb.isCorrect,
+                    userAnswer: rb.userAnswer,
+                    attemptCount: rb.attemptCount
+                )
+                if let date = iso.date(from: rb.practiceDate) { r.practiceDate = date }
+                context.insert(r)
+                recordsAdded += 1
+            }
+
+            try? context.save()
+            backupAlertTitle = "가져오기 완료"
+            backupAlertMessage = "단어 \(wordsAdded)개, 기록 \(recordsAdded)개 추가됨"
+            showBackupAlert = true
+        } catch {
+            backupAlertTitle = "오류"
+            backupAlertMessage = error.localizedDescription
+            showBackupAlert = true
         }
     }
 }

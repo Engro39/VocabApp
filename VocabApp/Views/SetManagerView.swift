@@ -1,31 +1,5 @@
 import SwiftUI
 import SwiftData
-import UniformTypeIdentifiers
-
-// MARK: - Export document
-struct VocabDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json, .commaSeparatedText] }
-    var text: String
-
-    init(text: String) { self.text = text }
-
-    init(configuration: ReadConfiguration) throws {
-        guard let data = configuration.file.regularFileContents,
-              let str = String(data: data, encoding: .utf8)
-        else { throw CocoaError(.fileReadCorruptFile) }
-        text = str
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        FileWrapper(regularFileWithContents: Data(text.utf8))
-    }
-}
-
-// MARK: - Import mode
-enum ImportMode {
-    case overwrite   // 전체 덮어쓰기: 세트 1번부터 재시작
-    case append      // 추가: 기존 최대 세트 번호 + 1부터
-}
 
 // MARK: - SetManagerView
 struct SetManagerView: View {
@@ -34,23 +8,8 @@ struct SetManagerView: View {
 
     @State private var expandedSet: Int? = nil
     @State private var editingWord: Word? = nil
-    @State private var deleteSetKey: Int? = nil      // nil = 미표시, -1 = 진행중, 1+ = 세트번호
-    @State private var sortDescending: Bool = true   // true = 최신순(높은 번호 위), false = 오름차순
-
-    // Export
-    @State private var exportDoc: VocabDocument? = nil
-    @State private var showExporter = false
-    @State private var exportFilename = "vocab_export.json"
-
-    // Import — 파일 선택 전에 모드 확인
-    @State private var showImportModeSheet = false   // 덮어쓰기/추가 선택 시트
-    @State private var pendingImportURL: URL? = nil  // 선택된 파일 보관
-    @State private var showImporter = false
-
-    // 결과 알림
-    @State private var alertTitle = ""
-    @State private var alertMessage = ""
-    @State private var showAlert = false
+    @State private var deleteSetKey: Int? = nil
+    @State private var sortDescending: Bool = true
 
     // MARK: Computed
     private var completedSets: [Int] {
@@ -67,18 +26,15 @@ struct SetManagerView: View {
     }
 
     // MARK: - Renumber helper
-    // 완성 세트를 오름차순 번호 1, 2, 3... 으로 재부여 (표시 순서와 무관, 번호 압축용)
-    // pending 단어는 항상 max + 1 세트 번호 유지
     private func renumberSets() {
-        let sortedSets = completedSets  // 오름차순 보장
+        let sortedSets = completedSets
         for (newNum, oldNum) in sortedSets.enumerated() {
             let target = newNum + 1
             if oldNum != target {
                 for w in words(for: oldNum) { w.set = target }
             }
         }
-        // pending 단어 세트 번호 = 완성 세트 최대값 + 1
-        let newMax = completedSets.count  // renumber 후 최대값
+        let newMax = completedSets.count
         if !pendingWords.isEmpty {
             let pendingTarget = newMax + 1
             for w in pendingWords { w.set = pendingTarget }
@@ -89,122 +45,43 @@ struct SetManagerView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-                Color(hex: "#0f0e17").ignoresSafeArea()
+            Color(hex: "#0f0e17").ignoresSafeArea()
 
-                if allWords.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "tray").font(.system(size: 40)).foregroundStyle(.secondary)
-                        Text("단어가 없습니다").foregroundStyle(.secondary)
+            if allWords.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "tray").font(.system(size: 40)).foregroundStyle(.secondary)
+                    Text("단어가 없습니다").foregroundStyle(.secondary)
+                }
+            } else {
+                List {
+                    if !pendingWords.isEmpty {
+                        setSection(-1, isPendingSection: true)
                     }
-                } else {
-                    List {
-                        if !pendingWords.isEmpty {
-                            setSection(-1, isPendingSection: true)
-                        }
-                        ForEach(displayedSets, id: \.self) { setNum in
-                            setSection(setNum, isPendingSection: false)
-                        }
+                    ForEach(displayedSets, id: \.self) { setNum in
+                        setSection(setNum, isPendingSection: false)
                     }
-                    .listStyle(.insetGrouped)
-                    .scrollContentBackground(.hidden)
                 }
-            }
-            .navigationTitle("세트 관리")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbar { toolbarContent }
-
-            // ── Sheets & Alerts ──────────────────────────────────
-            .sheet(item: $editingWord) { EditWordView(word: $0) }
-
-            // Import 모드 선택 시트
-            .confirmationDialog("가져오기 방식", isPresented: $showImportModeSheet, titleVisibility: .visible) {
-                Button("덮어쓰기 (기존 단어 전체 삭제 후 세트 1번부터)") {
-                    if let url = pendingImportURL { runImport(url: url, mode: .overwrite) }
-                }
-                Button("추가 (기존 세트 뒤에 이어서)") {
-                    if let url = pendingImportURL { runImport(url: url, mode: .append) }
-                }
-                Button("취소", role: .cancel) { pendingImportURL = nil }
-            } message: {
-                Text("가져온 단어를 기존 단어장에 어떻게 적용할까요?")
-            }
-
-            // 파일 선택기
-            .fileImporter(
-                isPresented: $showImporter,
-                allowedContentTypes: [.json, .commaSeparatedText],
-                allowsMultipleSelection: false
-            ) { result in
-                switch result {
-                case .success(let urls):
-                    guard let url = urls.first,
-                          url.startAccessingSecurityScopedResource() else {
-                        showError("파일 접근 권한이 없습니다.")
-                        return
-                    }
-                    pendingImportURL = url
-                    showImportModeSheet = true
-                case .failure(let e):
-                    showError(e.localizedDescription)
-                }
-            }
-
-            // 파일 내보내기
-            .fileExporter(
-                isPresented: $showExporter,
-                document: exportDoc,
-                contentType: exportFilename.hasSuffix(".csv") ? .commaSeparatedText : .json,
-                defaultFilename: exportFilename
-            ) { result in
-                if case .failure(let e) = result { showError(e.localizedDescription) }
-            }
-
-            // 결과 알림
-            .alert(alertTitle, isPresented: $showAlert) {
-                Button("확인", role: .cancel) {}
-            } message: {
-                Text(alertMessage)
-            }
-
-            // 세트 삭제 확인
-            .alert("세트 삭제", isPresented: Binding(
-                get: { deleteSetKey != nil },
-                set: { if !$0 { deleteSetKey = nil } }
-            )) {
-                Button("삭제", role: .destructive) {
-                    if let k = deleteSetKey { deleteSet(k) }
-                }
-                Button("취소", role: .cancel) { deleteSetKey = nil }
-            } message: {
-                if let k = deleteSetKey {
-                    let count = k == -1 ? pendingWords.count : words(for: k).count
-                    let label = k == -1 ? "진행중" : "세트 \(k)"
-                    Text("\(label)의 단어 \(count)개를 삭제하고 세트 번호를 재정렬합니다.")
-                }
-            }
-    }
-
-    // MARK: - Toolbar
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Menu {
-                Button { prepareExport(format: "json") } label: {
-                    Label("JSON으로 내보내기", systemImage: "arrow.up.doc")
-                }
-                Button { prepareExport(format: "csv") } label: {
-                    Label("CSV로 내보내기", systemImage: "tablecells")
-                }
-            } label: {
-                Image(systemName: "arrow.up.circle")
-                    .foregroundStyle(Color(hex: "#e8c547"))
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
             }
         }
-        ToolbarItem(placement: .topBarTrailing) {
-            Button { showImporter = true } label: {
-                Image(systemName: "arrow.down.circle")
-                    .foregroundStyle(Color(hex: "#4ecdc4"))
+        .navigationTitle("세트 관리")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .sheet(item: $editingWord) { EditWordView(word: $0) }
+        .alert("세트 삭제", isPresented: Binding(
+            get: { deleteSetKey != nil },
+            set: { if !$0 { deleteSetKey = nil } }
+        )) {
+            Button("삭제", role: .destructive) {
+                if let k = deleteSetKey { deleteSet(k) }
+            }
+            Button("취소", role: .cancel) { deleteSetKey = nil }
+        } message: {
+            if let k = deleteSetKey {
+                let count = k == -1 ? pendingWords.count : words(for: k).count
+                let label = k == -1 ? "진행중" : "세트 \(k)"
+                Text("\(label)의 단어 \(count)개를 삭제하고 세트 번호를 재정렬합니다.")
             }
         }
     }
@@ -219,7 +96,6 @@ struct SetManagerView: View {
         let key = isPendingSection ? -1 : setNum
 
         Section {
-            // 세트 헤더 row — 왼쪽 스와이프로 삭제
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     expandedSet = expandedSet == key ? nil : key
@@ -304,188 +180,6 @@ struct SetManagerView: View {
         if expandedSet == key { expandedSet = nil }
         renumberSets()
     }
-
-    // MARK: - Export
-    private func prepareExport(format: String) {
-        let sorted = allWords.sorted { $0.set == $1.set ? $0.addedDate < $1.addedDate : $0.set < $1.set }
-        if format == "json" {
-            let items = sorted.map { w -> [String: Any] in
-                var dict: [String: Any] = [
-                    "word": w.word, "meaning": w.meaning, "exampleEn": w.exampleEn,
-                    "set": w.set, "isPending": w.isPending
-                ]
-                if w.hasDetail {
-                    dict["pronunciation"]      = w.pronunciation
-                    dict["partOfSpeech"]       = w.partOfSpeech
-                    dict["detailedDefinition"] = w.detailedDefinition
-                    dict["examples"]           = w.examples
-                    dict["nuance"]             = w.nuance
-                    dict["relatedWords"]        = w.relatedWords
-                }
-                return dict
-            }
-            if let data = try? JSONSerialization.data(withJSONObject: items, options: .prettyPrinted),
-               let str = String(data: data, encoding: .utf8) {
-                exportDoc = VocabDocument(text: str)
-                exportFilename = "vocab_export.json"
-                showExporter = true
-            }
-        } else {
-            var csv = "word,meaning,exampleEn,set,isPending,pronunciation,partOfSpeech,detailedDefinition,examples,nuance,relatedWords\n"
-            for w in sorted {
-                let fields = [
-                    w.word, w.meaning, w.exampleEn, "\(w.set)", w.isPending ? "true" : "false",
-                    w.pronunciation, w.partOfSpeech, w.detailedDefinition,
-                    w.examplesJSON, w.nuance, w.relatedWordsJSON
-                ]
-                csv += fields.map { "\"\($0.replacingOccurrences(of: "\"", with: "\"\""))\"" }.joined(separator: ",") + "\n"
-            }
-            exportDoc = VocabDocument(text: csv)
-            exportFilename = "vocab_export.csv"
-            showExporter = true
-        }
-    }
-
-    // MARK: - Import
-    private func runImport(url: URL, mode: ImportMode) {
-        defer {
-            url.stopAccessingSecurityScopedResource()
-            pendingImportURL = nil
-        }
-
-        do {
-            let data = try Data(contentsOf: url)
-            let ext = url.pathExtension.lowercased()
-
-            // 덮어쓰기: 기존 단어 전체 삭제
-            if mode == .overwrite {
-                for w in allWords { context.delete(w) }
-                try? context.save()
-            }
-
-            let count: Int
-            if ext == "json" {
-                count = try importJSON(data: data, mode: mode)
-            } else {
-                count = try importCSV(data: data, mode: mode)
-            }
-
-            // 가져온 후 세트 번호 재정렬
-            renumberSets()
-
-            let modeLabel = mode == .overwrite ? "덮어쓰기" : "추가"
-            alertTitle = "가져오기 완료"
-            alertMessage = "\(count)개 단어를 \(modeLabel)했습니다."
-            showAlert = true
-
-        } catch {
-            showError(error.localizedDescription)
-        }
-    }
-
-    private func importJSON(data: Data, mode: ImportMode) throws -> Int {
-        guard let arr = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            throw NSError(domain: "VocabImport", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "JSON 형식 오류"])
-        }
-        // append 모드: 현재 최대 세트 번호 기준으로 offset
-        let setOffset = mode == .append ? (allWords.map(\.set).max() ?? 0) : 0
-        var count = 0
-        for item in arr {
-            guard let word = item["word"] as? String,
-                  let meaning = item["meaning"] as? String else { continue }
-            let example     = item["exampleEn"] as? String ?? ""
-            let originalSet = item["set"] as? Int ?? 1
-            let isPending   = item["isPending"] as? Bool ?? false
-            let pronunciation      = item["pronunciation"] as? String ?? ""
-            let partOfSpeech       = item["partOfSpeech"] as? String ?? ""
-            let detailedDefinition = item["detailedDefinition"] as? String ?? ""
-            let examples           = item["examples"] as? [String] ?? []
-            let nuance             = item["nuance"] as? String ?? ""
-            let relatedWords       = item["relatedWords"] as? [String] ?? []
-            context.insert(Word(
-                word: word, meaning: meaning, exampleEn: example,
-                set: originalSet + setOffset, isPending: isPending,
-                pronunciation: pronunciation, partOfSpeech: partOfSpeech,
-                detailedDefinition: detailedDefinition, examples: examples,
-                nuance: nuance, relatedWords: relatedWords
-            ))
-            count += 1
-        }
-        try? context.save()
-        return count
-    }
-
-    private func importCSV(data: Data, mode: ImportMode) throws -> Int {
-        guard let str = String(data: data, encoding: .utf8) else {
-            throw NSError(domain: "VocabImport", code: 2,
-                          userInfo: [NSLocalizedDescriptionKey: "CSV 인코딩 오류"])
-        }
-        let setOffset = mode == .append ? (allWords.map(\.set).max() ?? 0) : 0
-        var lines = str.components(separatedBy: "\n").filter { !$0.isEmpty }
-        if lines.first?.lowercased().contains("word") == true { lines.removeFirst() }
-        var count = 0
-        for line in lines {
-            let fields = parseCSVLine(line)
-            guard fields.count >= 2 else { continue }
-            let word        = fields[0]
-            let meaning     = fields[1]
-            let example     = fields.count > 2  ? fields[2] : ""
-            let originalSet = fields.count > 3  ? (Int(fields[3]) ?? 1) : 1
-            let isPending   = fields.count > 4  ? fields[4] == "true" : false
-            // 상세 필드 (구버전 CSV에는 없을 수 있으므로 기본값 사용)
-            let pronunciation      = fields.count > 5  ? fields[5] : ""
-            let partOfSpeech       = fields.count > 6  ? fields[6] : ""
-            let detailedDefinition = fields.count > 7  ? fields[7] : ""
-            let examplesJSON       = fields.count > 8  ? fields[8] : "[]"
-            let nuance             = fields.count > 9  ? fields[9] : ""
-            let relatedWordsJSON   = fields.count > 10 ? fields[10] : "[]"
-            let examples     = Word.decodeJSON(examplesJSON)
-            let relatedWords = Word.decodeJSON(relatedWordsJSON)
-            context.insert(Word(
-                word: word, meaning: meaning, exampleEn: example,
-                set: originalSet + setOffset, isPending: isPending,
-                pronunciation: pronunciation, partOfSpeech: partOfSpeech,
-                detailedDefinition: detailedDefinition, examples: examples,
-                nuance: nuance, relatedWords: relatedWords
-            ))
-            count += 1
-        }
-        try? context.save()
-        return count
-    }
-
-    private func parseCSVLine(_ line: String) -> [String] {
-        var fields: [String] = []
-        var current = ""
-        var inQuotes = false
-        var i = line.startIndex
-        while i < line.endIndex {
-            let c = line[i]
-            if c == "\"" {
-                let next = line.index(after: i)
-                if inQuotes && next < line.endIndex && line[next] == "\"" {
-                    current.append("\"")
-                    i = line.index(after: next)
-                    continue
-                }
-                inQuotes.toggle()
-            } else if c == "," && !inQuotes {
-                fields.append(current); current = ""
-            } else {
-                current.append(c)
-            }
-            i = line.index(after: i)
-        }
-        fields.append(current)
-        return fields
-    }
-
-    private func showError(_ msg: String) {
-        alertTitle = "오류"
-        alertMessage = msg
-        showAlert = true
-    }
 }
 
 // MARK: - EditWordView
@@ -530,8 +224,8 @@ struct EditWordView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("저장") {
-                        word.word    = wordText.trimmingCharacters(in: .whitespaces)
-                        word.meaning = meaningText.trimmingCharacters(in: .whitespaces)
+                        word.word      = wordText.trimmingCharacters(in: .whitespaces)
+                        word.meaning   = meaningText.trimmingCharacters(in: .whitespaces)
                         word.exampleEn = exampleText.trimmingCharacters(in: .whitespaces)
                         try? context.save()
                         dismiss()
