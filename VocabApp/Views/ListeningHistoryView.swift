@@ -267,6 +267,47 @@ private struct RecordRow: View {
     }
 }
 
+// MARK: - LCS Diff
+
+private enum DiffToken {
+    case match(String)    // sentence word matched by user → green
+    case missing(String)  // sentence word user omitted → red "(word)"
+    case extra(String)    // user typed a word not in sentence → red
+}
+
+private func lcsDiff(sentenceWords: [String], sentenceNorms: [String],
+                     userWords: [String], userNorms: [String]) -> [DiffToken] {
+    let m = sentenceNorms.count
+    let n = userNorms.count
+    guard m > 0 else { return userWords.map { .extra($0) } }
+    guard n > 0 else { return sentenceWords.map { .missing($0) } }
+
+    var dp = Array(repeating: Array(repeating: 0, count: n + 1), count: m + 1)
+    for i in 1...m {
+        for j in 1...n {
+            dp[i][j] = sentenceNorms[i-1] == userNorms[j-1]
+                ? dp[i-1][j-1] + 1
+                : max(dp[i-1][j], dp[i][j-1])
+        }
+    }
+
+    var tokens: [DiffToken] = []
+    var i = m, j = n
+    while i > 0 || j > 0 {
+        if i > 0 && j > 0 && sentenceNorms[i-1] == userNorms[j-1] {
+            tokens.append(.match(sentenceWords[i-1]))
+            i -= 1; j -= 1
+        } else if j > 0 && (i == 0 || dp[i][j-1] >= dp[i-1][j]) {
+            tokens.append(.extra(userWords[j-1]))
+            j -= 1
+        } else {
+            tokens.append(.missing(sentenceWords[i-1]))
+            i -= 1
+        }
+    }
+    return tokens.reversed()
+}
+
 // MARK: - RecordDetailSheet
 
 private struct RecordDetailSheet: View {
@@ -343,36 +384,45 @@ private struct RecordDetailSheet: View {
         .cornerRadius(12)
     }
 
-    // Word-by-word diff: green = match, red = mismatch.
-    // Uses greedy LCS — for each user word, scans forward in the sentence word list.
+    // LCS-based diff against the correct sentence.
+    // Matched sentence words → green; omitted sentence words → red "(word)"; extra user words → red.
     private var diffText: Text {
-        let userWords = record.userAnswer
-            .components(separatedBy: .whitespaces).filter { !$0.isEmpty }
-
-        if record.isCorrect || userWords.isEmpty {
+        if record.isCorrect {
             var attr = AttributedString(record.userAnswer)
             attr.foregroundColor = .green.opacity(0.9)
             return Text(attr)
         }
 
-        let sentenceNorms = record.sentence.normalizedWords
-        var sentenceIdx = 0
+        let sentenceWords = record.sentence
+            .components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        let userWords = record.userAnswer
+            .components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+
+        let tokens = lcsDiff(
+            sentenceWords: sentenceWords,
+            sentenceNorms: sentenceWords.map { $0.normalized },
+            userWords: userWords,
+            userNorms: userWords.map { $0.normalized }
+        )
+
         var attributed = AttributedString()
-
-        for (i, word) in userWords.enumerated() {
-            let matched: Bool
-            if let j = sentenceNorms[sentenceIdx...].firstIndex(where: { $0 == word.normalized }) {
-                sentenceIdx = j + 1
-                matched = true
-            } else {
-                matched = false
+        for (idx, token) in tokens.enumerated() {
+            if idx > 0 { attributed += AttributedString(" ") }
+            switch token {
+            case .match(let word):
+                var piece = AttributedString(word)
+                piece.foregroundColor = .green.opacity(0.9)
+                attributed += piece
+            case .missing(let word):
+                var piece = AttributedString("(\(word))")
+                piece.foregroundColor = Color(hex: "#ff6b6b")
+                attributed += piece
+            case .extra(let word):
+                var piece = AttributedString(word)
+                piece.foregroundColor = Color(hex: "#ff6b6b")
+                attributed += piece
             }
-            if i > 0 { attributed += AttributedString(" ") }
-            var piece = AttributedString(word)
-            piece.foregroundColor = matched ? .green : Color(hex: "#ff6b6b")
-            attributed += piece
         }
-
         return Text(attributed)
     }
 
