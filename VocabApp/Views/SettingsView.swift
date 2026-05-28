@@ -218,6 +218,20 @@ struct SettingsView: View {
                     }
                 }
                 .scrollContentBackground(.hidden)
+                .scrollDismissesKeyboard(.interactively)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("완료") {
+                            UIApplication.shared.sendAction(
+                                #selector(UIResponder.resignFirstResponder),
+                                to: nil, from: nil, for: nil
+                            )
+                        }
+                        .foregroundStyle(Color(hex: "#e8c547"))
+                        .fontWeight(.semibold)
+                    }
+                }
             }
             .navigationTitle("설정")
             .navigationBarTitleDisplayMode(.inline)
