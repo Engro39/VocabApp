@@ -219,6 +219,7 @@ struct AddWordView: View {
                         font: .systemFont(ofSize: 28, weight: .bold),
                         color: UIColor(Color(hex: "#e8c547"))
                     )
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     HStack(spacing: 8) {
                         SelectableText(
                             d.pronunciation,
