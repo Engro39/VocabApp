@@ -20,8 +20,10 @@ final class GoogleTTSService {
     private init() {}
 
     // Fetches WaveNet audio and plays it. Throws on network/API/playback errors.
-    // rate: Google speakingRate (1.0 = normal; map from AVSpeech rate via `avRate / 0.5`).
-    func speak(_ text: String, rate: Float = 1.0) async throws {
+    // rate: Google speakingRate (1.0 = normal).
+    // Map from AVSpeech rate via `(avRate / 0.42) * 1.15`:
+    //   avRate 0.42 (normal) → 1.15,  avRate 0.30 (slow) → ~0.82
+    func speak(_ text: String, rate: Float = 1.15) async throws {
         isStopped = false
         ttsLog.debug("speak() called — text='\(text.prefix(40))' rate=\(rate)")
 

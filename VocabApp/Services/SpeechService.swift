@@ -46,7 +46,7 @@ final class SpeechService: NSObject {
         if hasGoogle {
             Task {
                 do {
-                    try await GoogleTTSService.shared.speak(text, rate: rate / 0.5)
+                    try await GoogleTTSService.shared.speak(text, rate: (rate / 0.42) * 1.15)
                     speechLog.debug("speak() — GoogleTTS succeeded")
                     deactivateSession()
                 } catch {
@@ -73,7 +73,7 @@ final class SpeechService: NSObject {
 
         if hasGoogle {
             do {
-                try await GoogleTTSService.shared.speak(text, rate: rate / 0.5)
+                try await GoogleTTSService.shared.speak(text, rate: (rate / 0.42) * 1.15)
                 speechLog.debug("speakAndWait() — GoogleTTS succeeded")
                 deactivateSession()
                 return
