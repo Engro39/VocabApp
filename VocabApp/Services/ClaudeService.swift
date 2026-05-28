@@ -131,8 +131,17 @@ final class ClaudeService {
         Be highly creative and varied — use diverse grammatical structures, tenses, \
         vocabulary, and sentence patterns each time.
 
+        Rotate through these sentence types so each generation feels different:
+        - Declarative (statement): e.g. "She decided to quit her job and travel the world."
+        - Yes/no question: e.g. "Have you ever felt a strong aversion to something?"
+        - Wh-question: e.g. "What would you do if you won the lottery tomorrow?"
+        - Conditional/hypothetical: e.g. "If I had known earlier, I would have acted differently."
+        - Exclamatory or emphatic: e.g. "It's absolutely incredible how fast technology evolves!"
+        - Conversational/dialogue-like: e.g. "Honestly, I think we should just talk it through."
+
         Generate exactly one English sentence with these requirements:
         - Difficulty: \(difficulty) (\(wordRange))
+        - Sentence type: pick whichever type has NOT appeared in recent sentences below
         """
         if !topic.isEmpty {
             prompt += "\n- Topic: \(topic)"
