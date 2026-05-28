@@ -333,15 +333,47 @@ private struct RecordDetailSheet: View {
             Text("내 답변")
                 .font(.caption.bold())
                 .foregroundStyle(record.isCorrect ? Color.green : Color(hex: "#ff6b6b"))
-            Text(record.userAnswer)
+            diffText
                 .font(.body)
-                .foregroundStyle(record.isCorrect ? Color.green.opacity(0.9) : Color(hex: "#ff6b6b").opacity(0.9))
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
         .background(Color(hex: "#1a1828"))
         .cornerRadius(12)
+    }
+
+    // Word-by-word diff: green = match, red = mismatch.
+    // Uses greedy LCS — for each user word, scans forward in the sentence word list.
+    private var diffText: Text {
+        let userWords = record.userAnswer
+            .components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+
+        if record.isCorrect || userWords.isEmpty {
+            var attr = AttributedString(record.userAnswer)
+            attr.foregroundColor = .green.opacity(0.9)
+            return Text(attr)
+        }
+
+        let sentenceNorms = record.sentence.normalizedWords
+        var sentenceIdx = 0
+        var attributed = AttributedString()
+
+        for (i, word) in userWords.enumerated() {
+            let matched: Bool
+            if let j = sentenceNorms[sentenceIdx...].firstIndex(where: { $0 == word.normalized }) {
+                sentenceIdx = j + 1
+                matched = true
+            } else {
+                matched = false
+            }
+            if i > 0 { attributed += AttributedString(" ") }
+            var piece = AttributedString(word)
+            piece.foregroundColor = matched ? .green : Color(hex: "#ff6b6b")
+            attributed += piece
+        }
+
+        return Text(attributed)
     }
 
     private var playbackButtons: some View {

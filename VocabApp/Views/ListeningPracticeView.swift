@@ -416,16 +416,7 @@ struct ListeningPracticeView: View {
     }
 
     private func evaluate() {
-        let normalize: (String) -> String = { s in
-            let allowed = CharacterSet.alphanumerics.union(.whitespaces)
-            let stripped = String(s.unicodeScalars.filter { allowed.contains($0) })
-            return stripped
-                .lowercased()
-                .components(separatedBy: .whitespaces)
-                .filter { !$0.isEmpty }
-                .joined(separator: " ")
-        }
-        let isCorrect = normalize(userAnswer) == normalize(sentence)
+        let isCorrect = userAnswer.normalized == sentence.normalized
         evaluation = isCorrect ? .correct : .incorrect
         attemptCount += 1
     }
