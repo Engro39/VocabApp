@@ -36,49 +36,51 @@ final class SpeechService: NSObject {
     // MARK: - Speak (fire-and-forget)
     // Google WaveNet → AVSpeechSynthesizer fallback
 
-    func speak(_ text: String, language: String, rate: Float = 0.42) {
+    func speak(_ text: String, language: String, slow: Bool = false) {
         guard !text.isEmpty else { return }
         let hasGoogle = KeychainService.shared.hasGoogleTTSKey
-        speechLog.debug("speak() hasGoogleTTSKey=\(hasGoogle) text='\(text.prefix(40))'")
+        speechLog.debug("speak() hasGoogleTTSKey=\(hasGoogle) slow=\(slow) text='\(text.prefix(40))'")
         synthesizer.stopSpeaking(at: .immediate)
         googleSpeakTask?.cancel()
         googleSpeakTask = nil
         GoogleTTSService.shared.stop()
         if !sessionLocked { try? AVAudioSession.sharedInstance().setActive(true) }
 
+        let gRate = googleRate(slow: slow)
         if hasGoogle {
             googleSpeakTask = Task {
                 do {
-                    try await GoogleTTSService.shared.speak(text, rate: (rate / 0.42) * 1.15)
+                    try await GoogleTTSService.shared.speak(text, rate: gRate)
                     speechLog.debug("speak() — GoogleTTS succeeded")
                     deactivateSession()
                 } catch {
                     // Task.isCancelled: 이전 speak() 호출로 취소된 경우 — fallback 하지 않음
                     guard !Task.isCancelled else { return }
                     speechLog.error("speak() — GoogleTTS failed (\(error)), falling back to AVSpeech")
-                    synthesizer.speak(makeUtterance(text, language: language, rate: rate))
+                    synthesizer.speak(makeUtterance(text, language: language, rate: avSpeechRate(slow: slow)))
                     // delegate handles deactivation
                 }
             }
         } else {
             speechLog.debug("speak() — using AVSpeechSynthesizer")
-            synthesizer.speak(makeUtterance(text, language: language, rate: rate))
+            synthesizer.speak(makeUtterance(text, language: language, rate: avSpeechRate(slow: slow)))
         }
     }
 
     // MARK: - Speak and wait (async — 자동 넘기기 TTS 모드용)
 
-    func speakAndWait(_ text: String, language: String = "en-US", rate: Float = 0.42) async {
+    func speakAndWait(_ text: String, language: String = "en-US", slow: Bool = false) async {
         guard !text.isEmpty else { return }
         let hasGoogle = KeychainService.shared.hasGoogleTTSKey
-        speechLog.debug("speakAndWait() hasGoogleTTSKey=\(hasGoogle) text='\(text.prefix(40))'")
+        speechLog.debug("speakAndWait() hasGoogleTTSKey=\(hasGoogle) slow=\(slow) text='\(text.prefix(40))'")
         synthesizer.stopSpeaking(at: .immediate)
         GoogleTTSService.shared.stop()
         if !sessionLocked { try? AVAudioSession.sharedInstance().setActive(true) }
 
+        let gRate = googleRate(slow: slow)
         if hasGoogle {
             do {
-                try await GoogleTTSService.shared.speak(text, rate: (rate / 0.42) * 1.15)
+                try await GoogleTTSService.shared.speak(text, rate: gRate)
                 speechLog.debug("speakAndWait() — GoogleTTS succeeded")
                 deactivateSession()
                 return
@@ -89,7 +91,7 @@ final class SpeechService: NSObject {
 
         await withCheckedContinuation { cont in
             continuation = cont
-            synthesizer.speak(makeUtterance(text, language: language, rate: rate))
+            synthesizer.speak(makeUtterance(text, language: language, rate: avSpeechRate(slow: slow)))
         }
         // delegate calls deactivateSession()
     }
@@ -102,6 +104,20 @@ final class SpeechService: NSObject {
         synthesizer.stopSpeaking(at: .immediate)
         GoogleTTSService.shared.stop()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    // MARK: - Rate helpers
+
+    private func googleRate(slow: Bool) -> Float {
+        let key = slow ? "ttsSlowRate" : "ttsNormalRate"
+        let defaultValue: Double = slow ? 0.8 : 1.1
+        let stored = UserDefaults.standard.double(forKey: key)
+        return Float(stored > 0 ? stored : defaultValue)
+    }
+
+    // AVSpeech 0.42 ≈ natural rate, which corresponds to Google speakingRate 1.15
+    private func avSpeechRate(slow: Bool) -> Float {
+        return googleRate(slow: slow) * 0.42 / 1.15
     }
 
     // MARK: - Private helpers

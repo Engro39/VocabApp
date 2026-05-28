@@ -428,17 +428,17 @@ private struct RecordDetailSheet: View {
 
     private var playbackButtons: some View {
         HStack(spacing: 12) {
-            playBtn(label: "재생", icon: "play.fill", rate: 0.42,
+            playBtn(label: "재생", icon: "play.fill", slow: false,
                     bg: Color(hex: "#e8c547"), fg: Color(hex: "#0f0e17"))
-            playBtn(label: "느리게", icon: "tortoise.fill", rate: 0.30,
+            playBtn(label: "느리게", icon: "tortoise.fill", slow: true,
                     bg: Color(hex: "#1a1828"), fg: .white, bordered: true)
         }
     }
 
-    private func playBtn(label: String, icon: String, rate: Float,
+    private func playBtn(label: String, icon: String, slow: Bool,
                          bg: Color, fg: Color, bordered: Bool = false) -> some View {
         Button {
-            SpeechService.shared.speak(record.sentence, language: "en-US", rate: rate)
+            SpeechService.shared.speak(record.sentence, language: "en-US", slow: slow)
         } label: {
             Label(label, systemImage: icon)
                 .fontWeight(.semibold)

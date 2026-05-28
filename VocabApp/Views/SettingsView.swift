@@ -11,9 +11,11 @@ struct SettingsView: View {
     @State private var googleSaved: Bool = false
     @State private var googleKeyExists: Bool = false
 
-    @AppStorage("setBatchSize") private var setBatchSize: Int = 20
+    @AppStorage("setBatchSize")  private var setBatchSize: Int = 20
     @AppStorage("autoPlayMode")  private var autoPlayMode: String = "timer"
     @AppStorage("autoPlayCount") private var autoPlayCount: Int = 3
+    @AppStorage("ttsNormalRate") private var ttsNormalRate: Double = 1.1
+    @AppStorage("ttsSlowRate")   private var ttsSlowRate: Double = 0.8
 
     var body: some View {
         NavigationStack {
@@ -89,6 +91,52 @@ struct SettingsView: View {
                         Text(autoPlayMode == "tts"
                              ? "단어를 설정한 횟수만큼 읽어준 뒤 다음 카드로 넘어갑니다."
                              : "플레이 버튼을 누르면 설정한 시간마다 다음 카드로 자동으로 넘어갑니다.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+
+                    // ── TTS 재생 속도 ──────────────────────────────
+                    Section {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text("기본 속도")
+                                    .foregroundStyle(.white)
+                                Spacer()
+                                Text(String(format: "%.1fx", ttsNormalRate))
+                                    .font(.headline.bold())
+                                    .foregroundStyle(Color(hex: "#e8c547"))
+                            }
+                            Slider(value: $ttsNormalRate, in: 0.5...1.5, step: 0.1)
+                                .tint(Color(hex: "#e8c547"))
+                            HStack {
+                                Text("0.5x").font(.caption).foregroundStyle(.secondary)
+                                Spacer()
+                                Text("1.5x").font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .listRowBackground(Color(hex: "#1a1828"))
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text("느리게 속도")
+                                    .foregroundStyle(.white)
+                                Spacer()
+                                Text(String(format: "%.1fx", ttsSlowRate))
+                                    .font(.headline.bold())
+                                    .foregroundStyle(Color(hex: "#4ecdc4"))
+                            }
+                            Slider(value: $ttsSlowRate, in: 0.5...1.5, step: 0.1)
+                                .tint(Color(hex: "#4ecdc4"))
+                            HStack {
+                                Text("0.5x").font(.caption).foregroundStyle(.secondary)
+                                Spacer()
+                                Text("1.5x").font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .listRowBackground(Color(hex: "#1a1828"))
+                    } header: {
+                        Text("재생 속도").foregroundStyle(Color(hex: "#e8c547"))
+                    } footer: {
+                        Text("1.0 = 보통 속도 기준. 기본 버튼과 느리게 버튼 각각 독립 조절.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
 

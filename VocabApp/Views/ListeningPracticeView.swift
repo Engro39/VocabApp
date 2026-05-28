@@ -215,9 +215,9 @@ struct ListeningPracticeView: View {
                     .foregroundStyle(.secondary)
             }
             HStack(spacing: 12) {
-                playButton(label: "재생", icon: "play.fill", rate: 0.42,
+                playButton(label: "재생", icon: "play.fill", slow: false,
                            bg: Color(hex: "#e8c547"), fg: Color(hex: "#0f0e17"))
-                playButton(label: "느리게", icon: "tortoise.fill", rate: 0.30,
+                playButton(label: "느리게", icon: "tortoise.fill", slow: true,
                            bg: Color(hex: "#1a1828"), fg: .white, bordered: true)
             }
         }
@@ -226,10 +226,10 @@ struct ListeningPracticeView: View {
         .cornerRadius(12)
     }
 
-    private func playButton(label: String, icon: String, rate: Float,
+    private func playButton(label: String, icon: String, slow: Bool,
                             bg: Color, fg: Color, bordered: Bool = false) -> some View {
         Button {
-            SpeechService.shared.speak(sentence, language: "en-US", rate: rate)
+            SpeechService.shared.speak(sentence, language: "en-US", slow: slow)
         } label: {
             Label(label, systemImage: icon)
                 .fontWeight(.semibold)
@@ -408,7 +408,7 @@ struct ListeningPracticeView: View {
             sentence = result
             recentSentences = Array(([result] + recentSentences).prefix(5))
             addRecentTopic(topic.trimmingCharacters(in: .whitespaces))
-            SpeechService.shared.speak(sentence, language: "en-US", rate: 0.42)
+            SpeechService.shared.speak(sentence, language: "en-US")
         } catch {
             errorMessage = error.localizedDescription
         }
