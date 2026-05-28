@@ -185,7 +185,7 @@ struct AddWordView: View {
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
 
-            TextField("예: serendipity, break a leg...", text: $inputWord)
+            TextField("예: apple, happy, good morning...", text: $inputWord)
                 .textFieldStyle(.plain)
                 .padding(12)
                 .background(Color(hex: "#1a1828"))

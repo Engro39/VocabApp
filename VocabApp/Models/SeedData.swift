@@ -1,174 +1,339 @@
 import Foundation
 
 struct SeedData {
-    static let words: [(word: String, meaning: String, exampleEn: String, session: Int)] = [
-        // 세션 1
-        ("Embark", "착수하다, 시작하다", "Embark on a new journey.", 1),
-        ("Full-fledged", "완전한, 어엿한", "He is a full-fledged adult.", 1),
-        ("Scripture", "성경, 경전", "According to scripture, we must love one another.", 1),
-        ("Make yourself at home", "편하게 있어", "Come in, make yourself at home!", 1),
-        ("Cunning", "교활한, 약삭빠른", "The cunning fox outsmarted everyone.", 1),
-        ("Sulking", "삐치다, 토라지다", "Stop sulking and talk to me.", 1),
-        ("Stinking hag", "냄새나는 못된 마녀 할멈", "The stinking hag cackled in the darkness.", 1),
-        ("Supposed to", "~하기로 되어 있다", "You were supposed to call me!", 1),
-        ("I guess so", "그런 것 같아, 뭐 그렇지", "Are you tired? I guess so.", 1),
-        ("Sly", "교활한, 음흉한, 능글맞은", "He gave a sly smile and walked away.", 1),
-        ("Impromptu", "즉흥적인, 즉석의", "We threw an impromptu party last night.", 1),
-        ("Eccentric", "괴짜인, 별난, 독특한", "The eccentric professor wore a hat indoors.", 1),
-        ("Speck of dust", "먼지 한 톨, 티끌", "We are just a speck of dust in the universe.", 1),
-        ("Slob", "게으르고 지저분한 사람", "Don't be a slob — clean your room.", 1),
-        ("Sturdy", "튼튼한, 견고한, 탄탄한", "This is a very sturdy table.", 1),
-        ("Faint", "희미한 / 기절하다", "She fainted from the heat.", 1),
-        ("Parched", "바싹 마른, 몹시 목마른", "I'm absolutely parched. Can I have some water?", 1),
-        ("Lurk", "숨어서 기다리다, 도사리다", "Danger lurks around every corner.", 1),
-        ("Extort", "갈취하다, 강탈하다", "He extorted money from the victim.", 1),
-        ("Exhort", "강력히 권고하다, 촉구하다", "She exhorted her team to keep going.", 1),
-        // 세션 2
-        ("Bestow", "수여하다, 베풀다", "The king bestowed a medal on the hero.", 2),
-        ("Gnarly", "멋진, 힘든, 울퉁불퉁한", "That was a gnarly wave!", 2),
-        ("Bum", "게으름뱅이 / 엉덩이 / 얻어쓰다", "Can I bum a ride?", 2),
-        ("Quintessence", "전형, 정수, 진수", "She is the quintessence of elegance.", 2),
-        ("Irrefutable", "반박할 수 없는, 명백한", "The evidence was irrefutable.", 2),
-        ("Assuage", "달래다, 완화하다", "He tried to assuage her fears.", 2),
-        ("Galvanize", "자극하다, 분발시키다", "The speech galvanized the crowd.", 2),
-        ("Wasted", "술 취한, 마약에 취한", "He was completely wasted at the party.", 2),
-        ("Crappy", "형편없는, 엉망인", "What a crappy day.", 2),
-        ("Glute", "엉덩이 근육", "She felt the burn in her glutes.", 2),
-        ("Pelvis", "골반", "Keep your pelvis neutral during the exercise.", 2),
-        ("Grimoire", "마법서, 주문서", "The wizard opened his ancient grimoire.", 2),
-        ("Raid", "급습, 공습 / 급습하다", "Vikings raided the coastal village.", 2),
-        ("Siege", "포위 공격", "The castle was under siege for months.", 2),
-        ("Battlements", "흉벽, 성가퀴", "Archers stood on the battlements.", 2),
-        ("Stronghold", "요새, 거점", "The rebels retreated to their stronghold.", 2),
-        ("Heron", "왜가리", "A heron stood still at the edge of the lake.", 2),
-        ("Fungi", "균류, 버섯류 (복수)", "Some fungi are edible; others are toxic.", 2),
-        ("Braised", "찜한, 브레이즈한", "The braised short ribs were fall-off-the-bone tender.", 2),
-        ("Astringency", "떫은맛, 수렴성", "Green tea has a pleasant astringency.", 2),
-        // 세션 3
-        ("Contempt", "경멸, 멸시", "She looked at him with contempt.", 3),
-        ("Vent", "발산하다, 털어놓다", "Let me vent for a second.", 3),
-        ("Sobbing", "흐느끼다, 훌쩍이다", "She was sobbing uncontrollably.", 3),
-        ("Silent treatment", "침묵으로 무시하기", "He gave her the silent treatment.", 3),
-        ("Guilt trip", "죄책감 유발하기", "Stop guilt-tripping me!", 3),
-        ("Stoic", "감정을 드러내지 않는, 의연한", "He remained stoic throughout the ordeal.", 3),
-        ("Pout", "입술을 삐죽 내밀다, 토라진 표정", "She pouted when she didn't get her way.", 3),
-        ("Motte and bailey", "중세 성 구조 (흙 언덕+목책 성)", "The motte and bailey was the earliest castle form.", 3),
-        ("Projectile", "발사체, 투사체", "The catapult launched its projectile.", 3),
-        ("Monastery", "수도원", "The monks lived in a remote monastery.", 3),
-        ("Lactation", "수유, 젖 분비", "Lactation begins shortly after birth.", 3),
-        ("Acne", "여드름", "Teenagers often struggle with acne.", 3),
-        ("Complexion", "피부 톤, 안색", "She has a fair complexion.", 3),
-        ("Metabolism", "신진대사", "Regular exercise boosts your metabolism.", 3),
-        ("Septic", "패혈성의, 부패한", "The wound became septic.", 3),
-        ("Held-out", "보류된, 제외된 (데이터 등)", "We tested the model on a held-out dataset.", 3),
-        ("Analysis paralysis", "분석 마비 (과도한 분석으로 결정 못함)", "Don't fall into analysis paralysis.", 3),
-        ("Be intentional", "의도적으로 행동하다, 목적의식을 갖다", "Be intentional about how you spend your time.", 3),
-        ("Thrive", "번성하다, 잘 성장하다", "She thrives under pressure.", 3),
-        ("Undercapitalized", "자본이 부족한", "The startup was undercapitalized from the start.", 3),
-        // 세션 4
-        ("Think on your feet", "즉석에서 생각하다, 순발력 있게 대응하다", "You have to think on your feet in that job.", 4),
-        ("Put in the reps", "반복 연습을 쌓다", "You just have to put in the reps.", 4),
-        ("Pop up left and right", "여기저기서 생겨나다", "Coffee shops are popping up left and right.", 4),
-        ("Shopping on a budget", "예산 내에서 쇼핑하다", "She's great at shopping on a budget.", 4),
-        ("Make the business case", "사업적 타당성을 주장하다", "He made a strong business case for the project.", 4),
-        ("Suck", "형편없다, 별로다", "This movie sucks.", 4),
-        ("Binge", "폭식/폭음하다, 몰아보다", "I binged the whole series in one night.", 4),
-        ("Imperative", "필수적인, 긴요한 / 명령형", "It is imperative that we act now.", 4),
-        ("Steep", "가파른 / 우리다 (차를)", "Steep the tea for 3 minutes.", 4),
-        ("Prior to", "~에 앞서, ~이전에", "Prior to the meeting, review the notes.", 4),
-        ("Strait", "해협 (지리)", "Ships passed through the strait.", 4),
-        ("Ecstatic", "황홀한, 몹시 기쁜", "She was ecstatic when she got the offer.", 4),
-        ("Devastating", "충격적인, 파괴적인", "The news was absolutely devastating.", 4),
-        ("Swamped", "바쁜, 압도된", "I'm completely swamped with work.", 4),
-        ("Custody", "양육권, 구금", "She was awarded full custody.", 4),
-        ("Climactic", "클라이맥스의, 최고조의", "The climactic scene was breathtaking.", 4),
-        ("Conjure", "마법으로 불러내다, 떠올리다", "The smell conjured memories of childhood.", 4),
-        ("Cackle", "낄낄 웃다, 마녀처럼 웃다", "The witch cackled with delight.", 4),
-        ("Smirk", "능글맞게 웃다, 비웃다", "He smirked when he heard the news.", 4),
-        ("Scoff", "비웃다, 조소하다", "She scoffed at the idea.", 4),
-        // 세션 5
-        ("Grumble", "투덜거리다", "He always grumbles about the weather.", 5),
-        ("Snicker", "킥킥거리다 (비웃음)", "They snickered behind his back.", 5),
-        ("Wince", "움찔하다, 찡그리다", "She winced in pain.", 5),
-        ("Grimace", "얼굴을 찡그리다", "He grimaced at the bitter taste.", 5),
-        ("Flinch", "움츠리다, 주춤하다", "She didn't flinch at the loud noise.", 5),
-        ("Shudder", "몸서리치다, 떨다", "I shudder to think what could happen.", 5),
-        ("Fumble", "더듬거리다, 실수하다", "He fumbled with his keys.", 5),
-        ("Stammer", "말을 더듬다", "She stammered when she was nervous.", 5),
-        ("Blurt out", "불쑥 내뱉다", "He blurted out the secret.", 5),
-        ("Taunt", "놀리다, 조롱하다", "The bullies taunted him relentlessly.", 5),
-        ("Bewildered", "어리둥절한, 당황한", "She looked bewildered by the question.", 5),
-        ("Appalled", "경악한, 충격받은", "I was appalled by his behavior.", 5),
-        ("Exasperated", "몹시 짜증난, 지쳐 화난", "He sounded exasperated on the phone.", 5),
-        ("Flustered", "당황한, 허둥지둥하는", "She got flustered when asked on the spot.", 5),
-        ("Mortified", "몹시 창피한, 쥐구멍에 숨고 싶은", "I was mortified when I tripped on stage.", 5),
-        ("Sheepish", "머쓱한, 민망해하는", "He gave a sheepish grin.", 5),
-        ("Nostalgic", "향수를 느끼는", "That song makes me nostalgic.", 5),
-        ("Melancholy", "우울함, 슬픔", "A sense of melancholy filled the room.", 5),
-        ("Wistful", "아쉬운, 그리움 어린", "She looked at the photo with a wistful smile.", 5),
-        ("Lurking", "도사리고 있는, 숨어 있는", "A shadow was lurking in the corner.", 5),
-        // 세션 6
-        ("Defer", "미루다 / 따르다, 존중하다", "I'll defer to your judgment.", 6),
-        ("Nuanced", "미묘한 차이가 있는", "It's a nuanced issue.", 6),
-        ("Amalgamation", "합병, 융합", "The new style is an amalgamation of two genres.", 6),
-        ("Profound", "심오한, 깊은", "She had a profound impact on my life.", 6),
-        ("Stray", "길 잃은 / 벗어나다", "Don't stray from the path.", 6),
-        ("In sync", "동기화된, 맞아떨어지는", "We're totally in sync on this.", 6),
-        ("Detention", "구금, 방과 후 벌", "He got detention for talking in class.", 6),
-        ("Deport", "추방하다", "They were deported back to their home country.", 6),
-        ("Sternums", "흉골들 (sternum의 복수)", "Multiple sternums were visible on the X-ray.", 6),
-        ("Gawking", "멍하니 쳐다보다", "Stop gawking and help me!", 6),
-        ("Petrified", "겁에 질린 / 석화된", "I was petrified before the interview.", 6),
-        ("Make a big deal", "크게 부풀리다, 난리를 피우다", "Don't make a big deal out of it.", 6),
-        ("Cracking up", "폭소하다, 빵 터지다", "Everyone was cracking up at his joke.", 6),
-        ("Cleft palate", "구개파열", "Surgery corrected her cleft palate.", 6),
-        ("Incorporate", "통합하다, 포함시키다", "Incorporate feedback into the design.", 6),
-        ("Prevalent", "만연한, 널리 퍼진", "The disease is prevalent in tropical regions.", 6),
-        ("Encompass", "포함하다, 아우르다", "The report encompasses all major issues.", 6),
-        ("Drool", "침 흘리다, 군침 흘리다", "The baby drooled on my shirt.", 6),
-        ("Slaughter", "학살, 도살 / 학살하다", "The battle turned into a slaughter.", 6),
-        ("Hindsight", "뒤늦은 깨달음, 사후 판단", "In hindsight, it was a mistake.", 6),
-        // 세션 7
-        ("Getting all worked up", "흥분하다, 격해지다", "Don't get all worked up over nothing.", 7),
-        ("Make up my mind", "결심하다, 마음을 정하다", "I can't make up my mind.", 7),
-        ("What a bum rap", "억울한 처사, 불공평한 평가", "That's a real bum rap for him.", 7),
-        ("Groggily", "비틀거리며, 몽롱하게", "She groggily answered the phone.", 7),
-        ("Alter", "변경하다, 바꾸다", "We need to alter our plans.", 7),
-        ("Emergence", "출현, 부상", "The emergence of AI changed everything.", 7),
-        ("Comprehend", "이해하다, 파악하다", "I couldn't comprehend what he said.", 7),
-        ("Getting lost in a good story", "이야기에 빠져들다", "I love getting lost in a good story.", 7),
-        ("Look-away", "시선을 돌리는, 외면하는", "It was a look-away moment for the team.", 7),
-        ("Integrity", "성실함, 진실성, 무결성", "She acted with complete integrity.", 7),
-        ("Candid", "솔직한, 거침없는", "Can I be candid with you?", 7),
-        ("Forthright", "솔직한, 직접적인", "He was forthright about his mistakes.", 7),
-        ("Transparent", "투명한, 솔직한", "Be transparent about your intentions.", 7),
-        ("Ambiguous", "모호한, 불분명한", "The instructions were ambiguous.", 7),
-        ("Innate", "타고난, 선천적인", "She has an innate talent for music.", 7),
-        ("Resilient", "회복력 있는, 탄력적인", "Kids are incredibly resilient.", 7),
-        ("Tenacious", "끈질긴, 완강한", "He's tenacious in pursuit of his goals.", 7),
-        ("Meticulous", "꼼꼼한, 세심한", "She's meticulous about detail.", 7),
-        ("Pragmatic", "실용적인, 현실적인", "Take a pragmatic approach.", 7),
-        ("Eloquent", "유창한, 웅변적인", "She gave an eloquent speech.", 7),
-        // 세션 8
-        ("Empathy", "공감, 감정이입", "Show empathy toward others.", 8),
-        ("Leverage", "활용하다, 지렛대 효과", "Leverage your strengths.", 8),
-        ("Iterate", "반복하다, 계속 개선하다", "We need to iterate on the design.", 8),
-        ("Scalable", "확장 가능한", "Build a scalable system.", 8),
-        ("Bottleneck", "병목 현상", "The bottleneck is in data processing.", 8),
-        ("Synergy", "시너지, 협력 효과", "There's real synergy between the teams.", 8),
-        ("Pivot", "방향 전환하다", "The startup decided to pivot.", 8),
-        ("Bandwidth", "여력, 처리 용량", "I don't have the bandwidth for that right now.", 8),
-        ("Granular", "세밀한, 상세한", "Let's get more granular on the data.", 8),
-        ("Agile", "민첩한, 애자일 방식의", "We follow an agile workflow.", 8),
-        ("Deep dive", "깊이 파고들다", "Let's do a deep dive into the metrics.", 8),
-        ("Onboard", "합류시키다, 적응시키다", "It takes time to onboard new engineers.", 8),
-        ("Alignment", "일치, 조율, 정렬", "We need alignment on priorities.", 8),
-        ("Visibility", "가시성, 투명한 공유", "Give leadership more visibility into progress.", 8),
-        ("Proactive", "선제적인, 능동적인", "Be proactive about potential issues.", 8),
-        ("Sanity check", "기본 확인, 검증", "Do a quick sanity check before shipping.", 8),
-        ("Trade-off", "상충 관계, 트레이드오프", "Every decision involves a trade-off.", 8),
-        ("Benchmark", "기준점, 벤치마크", "Set a benchmark for performance.", 8),
-        ("Friction", "마찰, 저항", "Reduce friction in the user flow.", 8),
-        ("Robust", "견고한, 탄탄한", "Build a robust pipeline.", 8),
+    struct SeedWord {
+        let word: String
+        let meaning: String
+        let pronunciation: String
+        let partOfSpeech: String
+        let exampleEn: String
+        let examples: [String]
+        let detailedDefinition: String
+        let nuance: String
+        let relatedWords: [String]
+        let set: Int
+    }
+
+    static let sampleSet: [SeedWord] = [
+        SeedWord(
+            word: "Embark",
+            meaning: "착수하다, 시작하다",
+            pronunciation: "/ɪmˈbɑːrk/",
+            partOfSpeech: "verb",
+            exampleEn: "Embark on a new journey.",
+            examples: [
+                "We will embark on our journey to Europe next month.",
+                "The company is embarking on a new business venture.",
+                "Passengers began to embark on the cruise ship at noon."
+            ],
+            detailedDefinition: "To begin a journey or voyage, especially by ship or aircraft. To start or commence on a new project, adventure, or undertaking.",
+            nuance: "'Embark on/upon'은 새로운 프로젝트나 모험을 시작할 때 사용되며, 약간의 위엄함과 결단력이 담긴 표현입니다.",
+            relatedWords: ["begin", "commence", "start", "board", "undertake", "launch", "venture"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Full-fledged",
+            meaning: "완전한, 어엿한",
+            pronunciation: "/ˌfʊl ˈflɛdʒd/",
+            partOfSpeech: "adjective",
+            exampleEn: "He is a full-fledged adult.",
+            examples: [
+                "She is now a full-fledged member of the team.",
+                "The company has grown into a full-fledged enterprise.",
+                "He became a full-fledged doctor after completing his residency."
+            ],
+            detailedDefinition: "Completely developed, established, or qualified, having all the necessary qualifications or features.",
+            nuance: "원래는 새가 날개 깃털을 모두 갖추었다는 뜻에서 유래했습니다.",
+            relatedWords: ["complete", "fully developed", "mature", "established", "qualified"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Scripture",
+            meaning: "성경, 경전",
+            pronunciation: "/ˈskrɪptʃər/",
+            partOfSpeech: "noun",
+            exampleEn: "According to scripture, we must love one another.",
+            examples: [
+                "She quoted a Scripture passage during her sermon.",
+                "Many believers study Scripture daily for spiritual guidance.",
+                "The Scriptures provide moral teachings for Christians."
+            ],
+            detailedDefinition: "Sacred writings or texts of a religion, especially the Bible in Christianity.",
+            nuance: "보통 기독교 맥락에서 성경을 지칭하지만, 다른 종교의 경전을 표현할 때도 사용할 수 있습니다.",
+            relatedWords: ["Bible", "sacred text", "holy book", "verse", "gospel", "religious text"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Make yourself at home",
+            meaning: "편하게 있어",
+            pronunciation: "/meɪk jɔːrˈsɛlf ət hoʊm/",
+            partOfSpeech: "phrase",
+            exampleEn: "Come in, make yourself at home!",
+            examples: [
+                "Welcome to my apartment! Please, make yourself at home.",
+                "Don't be shy - make yourself at home. Help yourself to anything in the fridge.",
+                "When you visit us, we want you to make yourself at home."
+            ],
+            detailedDefinition: "A polite expression inviting someone to relax and feel comfortable in your space as if it were their own home.",
+            nuance: "손님을 환영하고 편하게 해주려는 친절한 태도를 표현하며, 형식적이지 않은 상황에서 자주 사용됩니다.",
+            relatedWords: ["feel at home", "welcome", "make someone comfortable", "put someone at ease"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Cunning",
+            meaning: "교활한, 약삭빠른",
+            pronunciation: "/ˈkʌnɪŋ/",
+            partOfSpeech: "adjective, noun",
+            exampleEn: "The cunning fox outsmarted everyone.",
+            examples: [
+                "The cunning fox escaped the hunter's trap by taking an unexpected route.",
+                "She used cunning tactics to win the negotiation without revealing her true intentions.",
+                "His cunning allowed him to navigate the complex political situation successfully."
+            ],
+            detailedDefinition: "Skillful at achieving one's aims by deceit or evasion.",
+            nuance: "긍정적으로는 '영리함', '기지'를 의미하지만 부정적으로는 '간교함', '사기성'을 내포할 수 있습니다.",
+            relatedWords: ["clever", "sly", "shrewd", "crafty", "deceptive", "astute"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Sulking",
+            meaning: "삐치다, 토라지다",
+            pronunciation: "/ˈsʌlkɪŋ/",
+            partOfSpeech: "verb / noun",
+            exampleEn: "Stop sulking and talk to me.",
+            examples: [
+                "She was sulking in her room after their argument.",
+                "He's been sulking all day because he didn't get invited to the party.",
+                "Stop sulking and tell me what's wrong."
+            ],
+            detailedDefinition: "To be silent, moody, and bad-tempered, usually because you are upset or annoyed about something.",
+            nuance: "sulking은 아이들이 보이는 행동처럼 인식되는 경향이 있어 성인이 이 행동을 하면 다소 미성숙해 보일 수 있습니다.",
+            relatedWords: ["pouting", "brooding", "moping", "being moody", "silent treatment"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Stinking hag",
+            meaning: "냄새나는 못된 마녀 할멈",
+            pronunciation: "/ˈstɪŋkɪŋ hæg/",
+            partOfSpeech: "phrase",
+            exampleEn: "The stinking hag cackled in the darkness.",
+            examples: [
+                "He called her a stinking hag in a fit of rage.",
+                "That stinking hag ruined everything with her lies.",
+                "Don't be such a stinking hag about helping others."
+            ],
+            detailedDefinition: "A derogatory and offensive phrase combining 'stinking' with 'hag'. It is an insulting expression.",
+            nuance: "이는 매우 모욕적이고 공격적인 욕설로, 여성혐오적 표현입니다. 현대에는 사용을 피해야 하며, 문학이나 역사적 맥락에서만 볼 수 있습니다.",
+            relatedWords: ["hag", "witch", "beldam", "shrew", "insult"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Supposed to",
+            meaning: "~하기로 되어 있다",
+            pronunciation: "/səˈpoʊzd tu/",
+            partOfSpeech: "phrase",
+            exampleEn: "You were supposed to call me!",
+            examples: [
+                "You are supposed to arrive at 9 AM.",
+                "I was supposed to call him yesterday, but I forgot.",
+                "Children are supposed to listen to their parents."
+            ],
+            detailedDefinition: "Indicates what is expected, required, or believed to be true based on plans, rules, or assumptions.",
+            nuance: "'supposed to'는 실제로 일어나지 않은 일에도 사용되며, 예상/의도/규칙을 나타냅니다.",
+            relatedWords: ["expected to", "required to", "ought to", "should"],
+            set: 1
+        ),
+        SeedWord(
+            word: "I guess so",
+            meaning: "그런 것 같아, 뭐 그렇지",
+            pronunciation: "/aɪ ɡɛs soʊ/",
+            partOfSpeech: "phrase",
+            exampleEn: "Are you tired? I guess so.",
+            examples: [
+                "A: Do you want to go to the party? B: I guess so.",
+                "A: Is this the right way to the station? B: I guess so, but I'm not completely sure.",
+                "A: Will you help me with this project? B: I guess so, if you really need me."
+            ],
+            detailedDefinition: "A somewhat uncertain or reluctant agreement or acknowledgment.",
+            nuance: "'I guess so'는 긍정이지만 확신이 없거나 마지못해 동의할 때 사용된다.",
+            relatedWords: ["I suppose so", "I think so", "sure, I guess", "okay, I guess", "probably"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Sly",
+            meaning: "교활한, 음흉한, 능글맞은",
+            pronunciation: "/slaɪ/",
+            partOfSpeech: "adjective",
+            exampleEn: "He gave a sly smile and walked away.",
+            examples: [
+                "He gave me a sly smile, as if he knew my secret.",
+                "She made a sly comment about his new haircut.",
+                "The sly fox managed to steal the chicken without being noticed."
+            ],
+            detailedDefinition: "Cunning or wily in a subtle or playful way, given to or done with secrecy or stealth.",
+            nuance: "'Sly'는 부정적인 속임수보다는 영리함이나 장난스러운 뉘앙스를 강조할 때가 많습니다.",
+            relatedWords: ["cunning", "crafty", "sneaky", "wily", "devious"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Impromptu",
+            meaning: "즉흥적인, 즉석의",
+            pronunciation: "/ɪmˈprɑːmptjuː/",
+            partOfSpeech: "adjective, adverb, noun",
+            exampleEn: "We threw an impromptu party last night.",
+            examples: [
+                "She gave an impromptu speech at the wedding without any notes.",
+                "The band decided to have an impromptu jam session in the studio.",
+                "He made an impromptu decision to travel to Paris last minute."
+            ],
+            detailedDefinition: "Done or made without advance preparation or planning, performed or spoken without rehearsal.",
+            nuance: "'Impromptu'는 긍정적인 뉘앙스로 기발함과 창의성을 암시할 수 있지만, 부정적으로는 준비 부족을 의미할 수 있다.",
+            relatedWords: ["spontaneous", "extemporaneous", "unrehearsed", "ad-lib", "spur-of-the-moment"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Eccentric",
+            meaning: "괴짜인, 별난, 독특한",
+            pronunciation: "/ɪkˈsɛntrɪk/",
+            partOfSpeech: "adjective, noun",
+            exampleEn: "The eccentric professor wore a hat indoors.",
+            examples: [
+                "He has eccentric fashion sense and always wears mismatched clothes.",
+                "The eccentric artist refused to follow any traditional rules in her paintings.",
+                "Her eccentric personality made her stand out among her conventional colleagues."
+            ],
+            detailedDefinition: "Deviating from the center or from a circular form. Also describes a person or their behavior that is unconventional, strange, or markedly different from what is expected.",
+            nuance: "긍정적 또는 중립적인 뉘앙스로 '개성 있는', '독특한'이라는 의미로 쓰일 수 있지만, 때로는 '이상하고 불가해한'이라는 부정적 뉘앙스도 포함할 수 있습니다.",
+            relatedWords: ["quirky", "unconventional", "peculiar", "odd", "strange", "idiosyncratic"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Speck of dust",
+            meaning: "먼지 한 톨, 티끌",
+            pronunciation: "/spɛk əv dʌst/",
+            partOfSpeech: "phrase",
+            exampleEn: "We are just a speck of dust in the universe.",
+            examples: [
+                "A speck of dust landed on her shoulder.",
+                "In the vastness of space, Earth is just a speck of dust.",
+                "He could see specks of dust floating in the sunlight."
+            ],
+            detailedDefinition: "A tiny particle of dust, so small it is almost invisible to the naked eye. Often used metaphorically to describe something insignificant.",
+            nuance: "'speck'은 매우 작은 입자를 강조하며, 때로는 비유적으로 '무시할 수 있는 작은 존재'라는 의미로도 쓰인다.",
+            relatedWords: ["particle", "grain", "dust mote", "speck", "fragment"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Slob",
+            meaning: "게으르고 지저분한 사람",
+            pronunciation: "/slɑːb/",
+            partOfSpeech: "noun",
+            exampleEn: "Don't be a slob — clean your room.",
+            examples: [
+                "He's such a slob, his apartment is always filled with dirty dishes and clothes.",
+                "Don't be a slob and clean up after yourself!",
+                "She married a slob, but over the years he learned to keep the house tidy."
+            ],
+            detailedDefinition: "A person who is habitually messy, dirty, or lazy.",
+            nuance: "부정적이고 조금 모욕적인 표현으로, 누군가를 직접 '슬롭'이라고 부르면 기분 나쁠 수 있습니다.",
+            relatedWords: ["messy", "lazy", "slothful", "unkempt", "slovenly"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Sturdy",
+            meaning: "튼튼한, 견고한, 탄탄한",
+            pronunciation: "/ˈstɜːrdi/",
+            partOfSpeech: "adjective",
+            exampleEn: "This is a very sturdy table.",
+            examples: [
+                "The sturdy wooden table has lasted for over 20 years.",
+                "He has a sturdy build and looks very strong.",
+                "This sturdy backpack is perfect for hiking trips."
+            ],
+            detailedDefinition: "Strong and solid in construction or build, capable of withstanding rough use or difficult conditions.",
+            nuance: "긍정적인 뉘앙스로 물건이나 사람의 강함과 내구성을 강조한다.",
+            relatedWords: ["strong", "durable", "robust", "solid", "firm"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Faint",
+            meaning: "희미한 / 기절하다",
+            pronunciation: "/feɪnt/",
+            partOfSpeech: "adjective, verb, noun",
+            exampleEn: "She fainted from the heat.",
+            examples: [
+                "I heard a faint sound coming from the other room.",
+                "She felt faint and had to sit down immediately.",
+                "He fainted during the ceremony and had to be carried out."
+            ],
+            detailedDefinition: "Not clearly seen, heard, or smelled, barely perceptible. As a verb, to lose consciousness temporarily.",
+            nuance: "'Faint'는 형용사로 쓸 때 '희미한, 약한' 의미로, 빛, 소리, 냄새 등이 거의 감지되지 않는 상태를 나타낸다.",
+            relatedWords: ["dim", "weak", "feeble", "pass out", "dizzy", "faint-hearted"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Parched",
+            meaning: "바싹 마른, 몹시 목마른",
+            pronunciation: "/pɑːrtʃt/",
+            partOfSpeech: "adjective",
+            exampleEn: "I'm absolutely parched. Can I have some water?",
+            examples: [
+                "After hiking in the desert all day, I felt completely parched.",
+                "The parched soil cracked under the intense summer heat.",
+                "Her parched lips needed moisturizer after the long flight."
+            ],
+            detailedDefinition: "Extremely dry, lacking moisture or water. It can describe land, lips, throat, or a person suffering from extreme thirst.",
+            nuance: "'Parched'는 단순히 '건조한'을 넘어 극도로 건조하거나 갈증으로 고생하는 상태를 강조합니다.",
+            relatedWords: ["dry", "thirsty", "desiccated", "arid"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Lurk",
+            meaning: "숨어서 기다리다, 도사리다",
+            pronunciation: "/lɜːrk/",
+            partOfSpeech: "verb",
+            exampleEn: "Danger lurks around every corner.",
+            examples: [
+                "A predator was lurking in the dark alley.",
+                "She lurked on the forum for months before posting her first comment.",
+                "Danger lurks around every corner in that neighborhood."
+            ],
+            detailedDefinition: "To remain hidden or out of sight, often with the implication of waiting or observing.",
+            nuance: "온라인 커뮤니티에서는 '즉시 참여하지 않고 구경하다'는 긍정적 의미도 있지만, 일반적으로는 숨어서 기다리는 불안감이나 위험한 상황을 암시한다.",
+            relatedWords: ["hide", "conceal", "stalk", "observe", "linger"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Extort",
+            meaning: "갈취하다, 강탈하다",
+            pronunciation: "/ɪkˈstɔːrt/",
+            partOfSpeech: "verb",
+            exampleEn: "He extorted money from the victim.",
+            examples: [
+                "The criminal gang extorted money from local business owners by threatening violence.",
+                "He was arrested for attempting to extort funds from the company using confidential information.",
+                "They extorted thousands of dollars from victims through blackmail."
+            ],
+            detailedDefinition: "To obtain something from someone by force, threats, or coercion, typically money or valuable items.",
+            nuance: "'Extort'는 협박, 위협, 강압을 통해 재물을 빼앗는 불법 행위를 의미한다.",
+            relatedWords: ["blackmail", "coerce", "threaten", "intimidate", "extortion"],
+            set: 1
+        ),
+        SeedWord(
+            word: "Exhort",
+            meaning: "강력히 권고하다, 촉구하다",
+            pronunciation: "/ɪɡˈzɔːrt/",
+            partOfSpeech: "verb",
+            exampleEn: "She exhorted her team to keep going.",
+            examples: [
+                "The coach exhorted his team to give their best effort in the final match.",
+                "The activist exhorted the crowd to take action against climate change.",
+                "She exhorted her friend to pursue his dreams despite the obstacles."
+            ],
+            detailedDefinition: "To strongly urge or persuade someone to do something, often with passion and earnestness.",
+            nuance: "'Exhort'는 단순한 제안이 아니라 열정적이고 강력한 권고를 의미합니다.",
+            relatedWords: ["urge", "encourage", "persuade", "implore", "beseech"],
+            set: 1
+        )
     ]
 }
