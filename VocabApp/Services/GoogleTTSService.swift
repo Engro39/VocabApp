@@ -65,6 +65,7 @@ final class GoogleTTSService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(Bundle.main.bundleIdentifier ?? "", forHTTPHeaderField: "X-Ios-Bundle-Identifier")
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "input":       ["text": text],
             "voice":       ["languageCode": "en-US", "name": "en-US-Wavenet-D"],
