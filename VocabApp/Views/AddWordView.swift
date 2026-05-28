@@ -212,31 +212,33 @@ struct AddWordView: View {
     private func detailSection(_ d: WordDetail) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             // 단어 헤더
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
+            HStack(alignment: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
                     SelectableText(
                         d.word,
                         font: .systemFont(ofSize: 28, weight: .bold),
                         color: UIColor(Color(hex: "#e8c547"))
                     )
-                    Button { speak(d.word) } label: {
-                        Image(systemName: "speaker.wave.2")
-                            .foregroundStyle(.secondary).font(.title3)
+                    HStack(spacing: 8) {
+                        SelectableText(
+                            d.pronunciation,
+                            font: .preferredFont(forTextStyle: .subheadline),
+                            color: .secondaryLabel
+                        )
+                        Text(d.partOfSpeech)
+                            .font(.caption.bold())
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Color(hex: "#a78bfa").opacity(0.2))
+                            .foregroundStyle(Color(hex: "#a78bfa"))
+                            .clipShape(Capsule())
                     }
                 }
-                HStack(spacing: 8) {
-                    SelectableText(
-                        d.pronunciation,
-                        font: .preferredFont(forTextStyle: .subheadline),
-                        color: .secondaryLabel
-                    )
-                    Text(d.partOfSpeech)
-                        .font(.caption.bold())
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Color(hex: "#a78bfa").opacity(0.2))
-                        .foregroundStyle(Color(hex: "#a78bfa"))
-                        .clipShape(Capsule())
+                Spacer()
+                Button { speak(d.word) } label: {
+                    Image(systemName: "speaker.wave.2")
+                        .foregroundStyle(.secondary).font(.title3)
                 }
+                .padding(.top, 2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(18)
@@ -272,7 +274,7 @@ struct AddWordView: View {
                                 color: .label,
                                 lineSpacing: 3
                             )
-                            Spacer()
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             Button { speak(ex) } label: {
                                 Image(systemName: "speaker.wave.2")
                                     .font(.caption).foregroundStyle(.secondary)
