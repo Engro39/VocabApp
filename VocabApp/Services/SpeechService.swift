@@ -1,4 +1,7 @@
 import AVFoundation
+import os.log
+
+private let speechLog = Logger(subsystem: "com.chulhoon.VocabApp", category: "SpeechService")
 
 final class SpeechService: NSObject {
     static let shared = SpeechService()
@@ -34,22 +37,26 @@ final class SpeechService: NSObject {
 
     func speak(_ text: String, language: String, rate: Float = 0.42) {
         guard !text.isEmpty else { return }
+        let hasGoogle = KeychainService.shared.hasGoogleTTSKey
+        speechLog.debug("speak() hasGoogleTTSKey=\(hasGoogle) text='\(text.prefix(40))'")
         synthesizer.stopSpeaking(at: .immediate)
         GoogleTTSService.shared.stop()
         if !sessionLocked { try? AVAudioSession.sharedInstance().setActive(true) }
 
-        if KeychainService.shared.hasGoogleTTSKey {
+        if hasGoogle {
             Task {
                 do {
                     try await GoogleTTSService.shared.speak(text, rate: rate / 0.5)
+                    speechLog.debug("speak() — GoogleTTS succeeded")
                     deactivateSession()
                 } catch {
-                    // Google TTS failed — fall back to system voice
+                    speechLog.error("speak() — GoogleTTS failed (\(error)), falling back to AVSpeech")
                     synthesizer.speak(makeUtterance(text, language: language, rate: rate))
                     // delegate handles deactivation
                 }
             }
         } else {
+            speechLog.debug("speak() — using AVSpeechSynthesizer")
             synthesizer.speak(makeUtterance(text, language: language, rate: rate))
         }
     }
@@ -58,17 +65,20 @@ final class SpeechService: NSObject {
 
     func speakAndWait(_ text: String, language: String = "en-US", rate: Float = 0.42) async {
         guard !text.isEmpty else { return }
+        let hasGoogle = KeychainService.shared.hasGoogleTTSKey
+        speechLog.debug("speakAndWait() hasGoogleTTSKey=\(hasGoogle) text='\(text.prefix(40))'")
         synthesizer.stopSpeaking(at: .immediate)
         GoogleTTSService.shared.stop()
         if !sessionLocked { try? AVAudioSession.sharedInstance().setActive(true) }
 
-        if KeychainService.shared.hasGoogleTTSKey {
+        if hasGoogle {
             do {
                 try await GoogleTTSService.shared.speak(text, rate: rate / 0.5)
+                speechLog.debug("speakAndWait() — GoogleTTS succeeded")
                 deactivateSession()
                 return
             } catch {
-                // fall through to AVSpeechSynthesizer
+                speechLog.error("speakAndWait() — GoogleTTS failed (\(error)), falling back to AVSpeech")
             }
         }
 

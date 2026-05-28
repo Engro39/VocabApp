@@ -1,5 +1,8 @@
 import Foundation
 import Security
+import os.log
+
+private let keychainLog = Logger(subsystem: "com.chulhoon.VocabApp", category: "Keychain")
 
 final class KeychainService {
     static let shared = KeychainService()
@@ -29,12 +32,18 @@ final class KeychainService {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
-        let status = SecItemUpdate(query as CFDictionary,
+        var status = SecItemUpdate(query as CFDictionary,
                                    [kSecValueData as String: data] as CFDictionary)
         if status == errSecItemNotFound {
             var item = query
             item[kSecValueData as String] = data
-            SecItemAdd(item as CFDictionary, nil)
+            status = SecItemAdd(item as CFDictionary, nil)
+            keychainLog.debug("SecItemAdd account=\(account) status=\(status)")
+        } else {
+            keychainLog.debug("SecItemUpdate account=\(account) status=\(status)")
+        }
+        if status != errSecSuccess {
+            keychainLog.error("Keychain save FAILED account=\(account) status=\(status)")
         }
     }
 
@@ -47,9 +56,18 @@ final class KeychainService {
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
         var item: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-              let data = item as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        if status != errSecSuccess {
+            keychainLog.debug("Keychain load account=\(account) status=\(status) → nil")
+            return nil
+        }
+        guard let data = item as? Data,
+              let value = String(data: data, encoding: .utf8) else {
+            keychainLog.error("Keychain load account=\(account): data decode failed")
+            return nil
+        }
+        keychainLog.debug("Keychain load account=\(account) → \(value.prefix(8))… (len=\(value.count))")
+        return value
     }
 
     private func delete(account: String) {
@@ -58,6 +76,7 @@ final class KeychainService {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
-        SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query as CFDictionary)
+        keychainLog.debug("Keychain delete account=\(account) status=\(status)")
     }
 }
