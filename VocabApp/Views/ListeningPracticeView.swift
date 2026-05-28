@@ -331,12 +331,8 @@ struct ListeningPracticeView: View {
                     Text("정답 문장")
                         .font(.caption.bold())
                         .foregroundStyle(.secondary)
-                    Text(sentence)
-                        .font(.body)
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.leading)
+                    SelectableText(sentence)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
                 }
                 .padding(12)
                 .background(Color(hex: "#0f0e17"))

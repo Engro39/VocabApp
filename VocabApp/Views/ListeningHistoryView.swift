@@ -358,12 +358,8 @@ private struct RecordDetailSheet: View {
             Text("문장")
                 .font(.caption.bold())
                 .foregroundStyle(Color(hex: "#e8c547"))
-            Text(record.sentence)
-                .font(.body)
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.leading)
+            SelectableText(record.sentence)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
         }
         .padding()
         .background(Color(hex: "#1a1828"))
