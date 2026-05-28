@@ -336,6 +336,7 @@ struct ListeningPracticeView: View {
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
                 }
                 .padding(12)
                 .background(Color(hex: "#0f0e17"))

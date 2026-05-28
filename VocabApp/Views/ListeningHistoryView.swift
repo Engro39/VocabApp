@@ -363,6 +363,7 @@ private struct RecordDetailSheet: View {
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
         }
         .padding()
         .background(Color(hex: "#1a1828"))
@@ -378,6 +379,7 @@ private struct RecordDetailSheet: View {
                 .font(.body)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
         }
         .padding()
         .background(Color(hex: "#1a1828"))
