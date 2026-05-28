@@ -1,5 +1,4 @@
 import AVFoundation
-import NaturalLanguage
 
 final class SpeechService: NSObject {
     static let shared = SpeechService()
@@ -30,23 +29,6 @@ final class SpeechService: NSObject {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
-    // MARK: - Language detection
-
-    func detectLanguage(_ text: String) -> String {
-        let recognizer = NLLanguageRecognizer()
-        recognizer.processString(text)
-        switch recognizer.dominantLanguage {
-        case .korean:             return "ko-KR"
-        case .japanese:           return "ja-JP"
-        case .simplifiedChinese:  return "zh-CN"
-        case .traditionalChinese: return "zh-TW"
-        case .french:             return "fr-FR"
-        case .german:             return "de-DE"
-        case .spanish:            return "es-ES"
-        default:                  return "en-US"
-        }
-    }
-
     // MARK: - Voice selection
 
     private func bestVoice(for language: String) -> AVSpeechSynthesisVoice? {
@@ -70,10 +52,6 @@ final class SpeechService: NSObject {
     }
 
     // MARK: - Speak (fire-and-forget)
-
-    func speak(_ text: String, rate: Float = 0.42) {
-        speak(text, language: detectLanguage(text), rate: rate)
-    }
 
     func speak(_ text: String, language: String, rate: Float = 0.42) {
         guard !text.isEmpty else { return }

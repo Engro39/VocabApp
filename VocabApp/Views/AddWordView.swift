@@ -404,7 +404,7 @@ struct AddWordView: View {
     }
 
     private func speak(_ text: String) {
-        SpeechService.shared.speak(text)
+        SpeechService.shared.speak(text, language: "en-US")
     }
 
     private func rebuildWordIndex() {

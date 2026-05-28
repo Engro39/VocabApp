@@ -398,10 +398,9 @@ struct FlashCardView: View {
 
                 if mode == "tts" {
                     // 발음 읽어주기 모드: N번 반복 후 다음 카드
-                    let lang = SpeechService.shared.detectLanguage(wordText)
                     for i in 0..<count {
                         guard !Task.isCancelled else { return }
-                        await SpeechService.shared.speakAndWait(wordText, language: lang)
+                        await SpeechService.shared.speakAndWait(wordText, language: "en-US")
                         if i < count - 1 {
                             // 반복 사이 0.5초 간격
                             try? await Task.sleep(nanoseconds: 500_000_000)
@@ -446,7 +445,7 @@ struct FlashCardView: View {
     }
 
     private func speak(_ text: String) {
-        SpeechService.shared.speak(text)
+        SpeechService.shared.speak(text, language: "en-US")
     }
 }
 
@@ -468,7 +467,7 @@ struct WordDetailSheet: View {
                                     .font(.system(size: 28, weight: .bold))
                                     .foregroundStyle(Color(hex: "#e8c547"))
                                     .textSelection(.enabled)
-                                Button { SpeechService.shared.speak(word.word) } label: {
+                                Button { SpeechService.shared.speak(word.word, language: "en-US") } label: {
                                     Image(systemName: "speaker.wave.2")
                                         .foregroundStyle(.secondary).font(.title3)
                                 }
@@ -515,7 +514,7 @@ struct WordDetailSheet: View {
                                                 .font(.subheadline).foregroundStyle(.primary).lineSpacing(3)
                                                 .textSelection(.enabled)
                                             Spacer()
-                                            Button { SpeechService.shared.speak(ex) } label: {
+                                            Button { SpeechService.shared.speak(ex, language: "en-US") } label: {
                                                 Image(systemName: "speaker.wave.2")
                                                     .font(.caption).foregroundStyle(.secondary)
                                             }
