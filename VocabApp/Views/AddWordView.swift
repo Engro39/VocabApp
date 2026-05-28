@@ -214,16 +214,22 @@ struct AddWordView: View {
             // 단어 헤더
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(d.word)
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(Color(hex: "#e8c547"))
+                    SelectableText(
+                        d.word,
+                        font: .systemFont(ofSize: 28, weight: .bold),
+                        color: UIColor(Color(hex: "#e8c547"))
+                    )
                     Button { speak(d.word) } label: {
                         Image(systemName: "speaker.wave.2")
                             .foregroundStyle(.secondary).font(.title3)
                     }
                 }
                 HStack(spacing: 8) {
-                    Text(d.pronunciation).font(.subheadline).foregroundStyle(.secondary)
+                    SelectableText(
+                        d.pronunciation,
+                        font: .preferredFont(forTextStyle: .subheadline),
+                        color: .secondaryLabel
+                    )
                     Text(d.partOfSpeech)
                         .font(.caption.bold())
                         .padding(.horizontal, 8).padding(.vertical, 3)
@@ -238,14 +244,20 @@ struct AddWordView: View {
             .clipShape(RoundedRectangle(cornerRadius: 16))
 
             detailCard(title: "한국어 뜻", icon: "textformat.alt") {
-                Text(d.meaningKo)
-                    .font(.title3.bold())
-                    .foregroundStyle(Color(hex: "#4ecdc4"))
+                SelectableText(
+                    d.meaningKo,
+                    font: .systemFont(ofSize: 20, weight: .bold),
+                    color: UIColor(Color(hex: "#4ecdc4"))
+                )
             }
 
             detailCard(title: "Definition", icon: "book") {
-                Text(d.detailedDefinition)
-                    .font(.subheadline).foregroundStyle(.primary).lineSpacing(4)
+                SelectableText(
+                    d.detailedDefinition,
+                    font: .preferredFont(forTextStyle: .subheadline),
+                    color: .label,
+                    lineSpacing: 4
+                )
             }
 
             detailCard(title: "예문", icon: "quote.bubble") {
@@ -254,8 +266,12 @@ struct AddWordView: View {
                         HStack(alignment: .top, spacing: 10) {
                             Text("\(i + 1)")
                                 .font(.caption.bold()).foregroundStyle(.secondary).frame(width: 16)
-                            Text(ex)
-                                .font(.subheadline).foregroundStyle(.primary).lineSpacing(3)
+                            SelectableText(
+                                ex,
+                                font: .preferredFont(forTextStyle: .subheadline),
+                                color: .label,
+                                lineSpacing: 3
+                            )
                             Spacer()
                             Button { speak(ex) } label: {
                                 Image(systemName: "speaker.wave.2")
@@ -271,8 +287,12 @@ struct AddWordView: View {
 
             if !d.nuance.isEmpty {
                 detailCard(title: "뉘앙스 & 사용 팁", icon: "lightbulb") {
-                    Text(d.nuance)
-                        .font(.subheadline).foregroundStyle(.primary).lineSpacing(4)
+                    SelectableText(
+                        d.nuance,
+                        font: .preferredFont(forTextStyle: .subheadline),
+                        color: .label,
+                        lineSpacing: 4
+                    )
                 }
             }
 

@@ -246,10 +246,13 @@ struct FlashCardView: View {
 
             if isFront {
                 VStack(spacing: 12) {
-                    Text(word.word)
-                        .font(.system(size: 32, weight: .bold))
-                        .foregroundStyle(Color(hex: "#e8c547"))
-                        .multilineTextAlignment(.center)
+                    SelectableText(
+                        word.word,
+                        font: .systemFont(ofSize: 32, weight: .bold),
+                        color: UIColor(Color(hex: "#e8c547")),
+                        alignment: .center,
+                        tapPassthrough: true
+                    )
 
                     // 단어 + 예문 TTS 버튼 둘 다 전면에 표시
                     HStack(spacing: 16) {
@@ -293,13 +296,21 @@ struct FlashCardView: View {
                 .padding(24)
             } else {
                 VStack(spacing: 14) {
-                    Text(word.meaning)
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundStyle(Color(hex: "#4ecdc4"))
-                        .multilineTextAlignment(.center)
-                    Text(word.exampleEn)
-                        .font(.subheadline).foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center).padding(.horizontal)
+                    SelectableText(
+                        word.meaning,
+                        font: .systemFont(ofSize: 24, weight: .bold),
+                        color: UIColor(Color(hex: "#4ecdc4")),
+                        alignment: .center,
+                        tapPassthrough: true
+                    )
+                    SelectableText(
+                        word.exampleEn,
+                        font: .preferredFont(forTextStyle: .subheadline),
+                        color: .secondaryLabel,
+                        alignment: .center,
+                        tapPassthrough: true
+                    )
+                    .padding(.horizontal)
                     Button { speak(word.exampleEn) } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "speaker.wave.2")
@@ -463,18 +474,22 @@ struct WordDetailSheet: View {
                         // 헤더
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                Text(word.word)
-                                    .font(.system(size: 28, weight: .bold))
-                                    .foregroundStyle(Color(hex: "#e8c547"))
-                                    .textSelection(.enabled)
+                                SelectableText(
+                                    word.word,
+                                    font: .systemFont(ofSize: 28, weight: .bold),
+                                    color: UIColor(Color(hex: "#e8c547"))
+                                )
                                 Button { SpeechService.shared.speak(word.word, language: "en-US") } label: {
                                     Image(systemName: "speaker.wave.2")
                                         .foregroundStyle(.secondary).font(.title3)
                                 }
                             }
                             HStack(spacing: 8) {
-                                Text(word.pronunciation).font(.subheadline).foregroundStyle(.secondary)
-                                    .textSelection(.enabled)
+                                SelectableText(
+                                    word.pronunciation,
+                                    font: .preferredFont(forTextStyle: .subheadline),
+                                    color: .secondaryLabel
+                                )
                                 Text(word.partOfSpeech)
                                     .font(.caption.bold())
                                     .padding(.horizontal, 8).padding(.vertical, 3)
@@ -489,17 +504,21 @@ struct WordDetailSheet: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16))
 
                         detailCard(title: "한국어 뜻", icon: "textformat.alt") {
-                            Text(word.meaning)
-                                .font(.title3.bold())
-                                .foregroundStyle(Color(hex: "#4ecdc4"))
-                                .textSelection(.enabled)
+                            SelectableText(
+                                word.meaning,
+                                font: .systemFont(ofSize: 20, weight: .bold),
+                                color: UIColor(Color(hex: "#4ecdc4"))
+                            )
                         }
 
                         if !word.detailedDefinition.isEmpty {
                             detailCard(title: "Definition", icon: "book") {
-                                Text(word.detailedDefinition)
-                                    .font(.subheadline).foregroundStyle(.primary).lineSpacing(4)
-                                    .textSelection(.enabled)
+                                SelectableText(
+                                    word.detailedDefinition,
+                                    font: .preferredFont(forTextStyle: .subheadline),
+                                    color: .label,
+                                    lineSpacing: 4
+                                )
                             }
                         }
 
@@ -510,9 +529,12 @@ struct WordDetailSheet: View {
                                         HStack(alignment: .top, spacing: 10) {
                                             Text("\(i + 1)")
                                                 .font(.caption.bold()).foregroundStyle(.secondary).frame(width: 16)
-                                            Text(ex)
-                                                .font(.subheadline).foregroundStyle(.primary).lineSpacing(3)
-                                                .textSelection(.enabled)
+                                            SelectableText(
+                                                ex,
+                                                font: .preferredFont(forTextStyle: .subheadline),
+                                                color: .label,
+                                                lineSpacing: 3
+                                            )
                                             Spacer()
                                             Button { SpeechService.shared.speak(ex, language: "en-US") } label: {
                                                 Image(systemName: "speaker.wave.2")
@@ -529,9 +551,12 @@ struct WordDetailSheet: View {
 
                         if !word.nuance.isEmpty {
                             detailCard(title: "뉘앙스 & 사용 팁", icon: "lightbulb") {
-                                Text(word.nuance)
-                                    .font(.subheadline).foregroundStyle(.primary).lineSpacing(4)
-                                    .textSelection(.enabled)
+                                SelectableText(
+                                    word.nuance,
+                                    font: .preferredFont(forTextStyle: .subheadline),
+                                    color: .label,
+                                    lineSpacing: 4
+                                )
                             }
                         }
 
