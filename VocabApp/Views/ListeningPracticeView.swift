@@ -141,7 +141,7 @@ struct ListeningPracticeView: View {
                     .foregroundStyle(Color(hex: "#e8c547"))
             }
         }
-        .frame(width: 35, height: 35)
+        .frame(width: 32, height: 32)
     }
 
     // MARK: - Sections
