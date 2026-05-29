@@ -85,6 +85,10 @@ final class SpeechService: NSObject {
                 deactivateSession()
                 return
             } catch {
+                guard !Task.isCancelled else {
+                    speechLog.debug("speakAndWait() — task cancelled, skipping AVSpeech fallback")
+                    return
+                }
                 speechLog.error("speakAndWait() — GoogleTTS failed (\(error)), falling back to AVSpeech")
             }
         }
