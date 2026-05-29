@@ -32,7 +32,6 @@ struct ListeningPracticeView: View {
     @State private var errorMessage: String? = nil
     @State private var savedRecord: ListeningRecord? = nil
     @State private var attemptCount: Int = 0
-    @State private var recentSentences: [String] = []
     @State private var showPeekedWarning = false
     @AppStorage("recentTopics")        private var recentTopicsRaw: String = ""
     @AppStorage("dailyListeningGoal")  private var dailyListeningGoal: Int = 10
@@ -142,7 +141,7 @@ struct ListeningPracticeView: View {
             }
         }
         .padding(2)
-        .frame(width: 28, height: 28)
+        .frame(width: 34, height: 34)
     }
 
     // MARK: - Sections
@@ -420,6 +419,27 @@ struct ListeningPracticeView: View {
         .cornerRadius(12)
     }
 
+    // MARK: - Persistent recent sentences
+
+    private func sentencesKey(for topic: String) -> String {
+        let t = topic.trimmingCharacters(in: .whitespaces)
+        return "recentSentences_\(t.isEmpty ? "general" : t.lowercased())"
+    }
+
+    private func loadStoredSentences(for topic: String) -> [String] {
+        let key = sentencesKey(for: topic)
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let arr = try? JSONDecoder().decode([String].self, from: data) else { return [] }
+        return arr
+    }
+
+    private func saveStoredSentences(_ sentences: [String], for topic: String) {
+        let key = sentencesKey(for: topic)
+        if let data = try? JSONEncoder().encode(Array(sentences.prefix(15))) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
     // MARK: - Logic
 
     private func hideKeyboard() {
@@ -441,15 +461,18 @@ struct ListeningPracticeView: View {
         savedRecord = nil
         attemptCount = 0
 
+        let trimmedTopic = topic.trimmingCharacters(in: .whitespaces)
+        let stored = loadStoredSentences(for: trimmedTopic)
+
         do {
             let result = try await ClaudeService.shared.generateListeningSentence(
                 difficulty: difficulty.englishName,
-                topic: topic.trimmingCharacters(in: .whitespaces),
-                previousSentences: recentSentences
+                topic: trimmedTopic,
+                previousSentences: stored
             )
             sentence = result
-            recentSentences = Array(([result] + recentSentences).prefix(5))
-            addRecentTopic(topic.trimmingCharacters(in: .whitespaces))
+            saveStoredSentences([result] + stored, for: trimmedTopic)
+            addRecentTopic(trimmedTopic)
             SpeechService.shared.speak(sentence, language: "en-US")
         } catch {
             errorMessage = error.localizedDescription
