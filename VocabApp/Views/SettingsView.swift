@@ -211,15 +211,25 @@ struct SettingsView: View {
 
                     // ── 듣기 목표 ──────────────────────────────────
                     Section {
-                        HStack {
-                            Text("일일 목표")
-                                .foregroundStyle(.white)
-                            Spacer()
-                            Text("\(dailyListeningGoal)회")
-                                .font(.headline.bold())
-                                .foregroundStyle(Color(hex: "#e8c547"))
-                            Stepper("", value: $dailyListeningGoal, in: 5...50, step: 1)
-                                .labelsHidden()
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text("일일 목표")
+                                    .foregroundStyle(.white)
+                                Spacer()
+                                Text("\(dailyListeningGoal)회")
+                                    .font(.headline.bold())
+                                    .foregroundStyle(Color(hex: "#e8c547"))
+                            }
+                            Slider(value: Binding(
+                                get: { Double(dailyListeningGoal) },
+                                set: { dailyListeningGoal = Int($0) }
+                            ), in: 1...50, step: 1)
+                            .tint(Color(hex: "#e8c547"))
+                            HStack {
+                                Text("1회").font(.caption).foregroundStyle(.secondary)
+                                Spacer()
+                                Text("50회").font(.caption).foregroundStyle(.secondary)
+                            }
                         }
                         .listRowBackground(Color(hex: "#1a1828"))
                     } header: {

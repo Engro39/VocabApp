@@ -122,26 +122,26 @@ struct ListeningPracticeView: View {
 
         return ZStack {
             Circle()
-                .stroke(Color(hex: "#e8c547").opacity(0.2), lineWidth: 3)
+                .stroke(Color(hex: "#e8c547").opacity(0.2), lineWidth: 2.5)
             if done {
                 Circle()
-                    .stroke(Color(hex: "#e8c547"), lineWidth: 3)
+                    .stroke(Color(hex: "#e8c547"), lineWidth: 2.5)
                 Image(systemName: "checkmark")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 9, weight: .bold))
                     .foregroundStyle(Color(hex: "#e8c547"))
             } else {
                 Circle()
                     .trim(from: 0, to: progress)
                     .stroke(Color(hex: "#e8c547"),
-                            style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                            style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(.easeOut(duration: 0.4), value: progress)
                 Text("\(count)/\(goal)")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(Color(hex: "#e8c547"))
             }
         }
-        .frame(width: 44, height: 44)
+        .frame(width: 35, height: 35)
     }
 
     // MARK: - Sections
