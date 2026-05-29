@@ -33,6 +33,8 @@ struct ListeningPracticeView: View {
     @State private var savedRecord: ListeningRecord? = nil
     @State private var attemptCount: Int = 0
     @State private var showPeekedWarning = false
+    @State private var sessionHistory: [String] = []
+    @State private var sessionContextKey: String = ""
     @AppStorage("recentTopics")        private var recentTopicsRaw: String = ""
     @AppStorage("dailyListeningGoal")  private var dailyListeningGoal: Int = 10
 
@@ -435,7 +437,7 @@ struct ListeningPracticeView: View {
 
     private func saveStoredSentences(_ sentences: [String], for topic: String) {
         let key = sentencesKey(for: topic)
-        if let data = try? JSONEncoder().encode(Array(sentences.prefix(15))) {
+        if let data = try? JSONEncoder().encode(Array(sentences.prefix(5))) {
             UserDefaults.standard.set(data, forKey: key)
         }
     }
@@ -462,15 +464,30 @@ struct ListeningPracticeView: View {
         attemptCount = 0
 
         let trimmedTopic = topic.trimmingCharacters(in: .whitespaces)
-        let stored = loadStoredSentences(for: trimmedTopic)
+
+        // topic 또는 difficulty가 바뀌면 세션 히스토리 초기화
+        let contextKey = "\(trimmedTopic)|\(difficulty.englishName)"
+        if contextKey != sessionContextKey {
+            sessionHistory = []
+            sessionContextKey = contextKey
+        }
+
+        let stored = loadStoredSentences(for: trimmedTopic)  // newest-first, max 5
+
+        // stored(oldest-first) + sessionHistory 합산 후 중복 제거, 최대 5개
+        var combined: [String] = []
+        for s in stored.reversed() where !combined.contains(s) { combined.append(s) }
+        for s in sessionHistory  where !combined.contains(s) { combined.append(s) }
+        let history = Array(combined.suffix(5))
 
         do {
             let result = try await ClaudeService.shared.generateListeningSentence(
                 difficulty: difficulty.englishName,
                 topic: trimmedTopic,
-                previousSentences: stored
+                conversationHistory: history
             )
             sentence = result
+            sessionHistory.append(result)
             saveStoredSentences([result] + stored, for: trimmedTopic)
             addRecentTopic(trimmedTopic)
             SpeechService.shared.speak(sentence, language: "en-US")

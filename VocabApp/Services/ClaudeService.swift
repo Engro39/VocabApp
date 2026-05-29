@@ -106,7 +106,7 @@ final class ClaudeService {
     func generateListeningSentence(
         difficulty: String,
         topic: String,
-        previousSentences: [String] = []
+        conversationHistory: [String] = []
     ) async throws -> String {
         guard let apiKey = KeychainService.shared.loadAPIKey(), !apiKey.isEmpty else {
             throw ClaudeError.noAPIKey
@@ -141,24 +141,25 @@ final class ClaudeService {
 
         Generate exactly one English sentence with these requirements:
         - Difficulty: \(difficulty) (\(wordRange))
-        - Sentence type: pick whichever type has NOT appeared in recent sentences below
+        - Vary sentence type each time
         """
         if !topic.isEmpty {
             prompt += "\n- Topic: \(topic)"
         }
-        prompt += "\n- Never repeat similar structure or vocabulary to previous sentences"
         prompt += "\n- Return only the sentence itself — no quotes, no labels, no explanation"
 
-        if !previousSentences.isEmpty {
-            prompt += "\n\nDo NOT generate sentences similar to these recent examples:\n"
-            prompt += previousSentences.map { "- \($0)" }.joined(separator: "\n")
+        // Build multi-turn messages: setup prompt → assistant/user turns for each history item
+        var messages: [[String: Any]] = [["role": "user", "content": prompt]]
+        for sentence in conversationHistory {
+            messages.append(["role": "assistant", "content": sentence])
+            messages.append(["role": "user",      "content": "Generate another sentence."])
         }
 
         let body: [String: Any] = [
             "model": "claude-haiku-4-5",
             "max_tokens": 200,
             "temperature": 1.0,
-            "messages": [["role": "user", "content": prompt]]
+            "messages": messages
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
