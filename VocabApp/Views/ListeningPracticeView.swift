@@ -141,6 +141,7 @@ struct ListeningPracticeView: View {
                     .foregroundStyle(Color(hex: "#e8c547"))
             }
         }
+        .padding(2)
         .frame(width: 28, height: 28)
     }
 
