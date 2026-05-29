@@ -70,8 +70,9 @@ struct SettingsView: View {
     @AppStorage("setBatchSize")  private var setBatchSize: Int = 20
     @AppStorage("autoPlayMode")  private var autoPlayMode: String = "timer"
     @AppStorage("autoPlayCount") private var autoPlayCount: Int = 3
-    @AppStorage("ttsNormalRate") private var ttsNormalRate: Double = 1.1
-    @AppStorage("ttsSlowRate")   private var ttsSlowRate: Double = 0.8
+    @AppStorage("ttsNormalRate")       private var ttsNormalRate: Double = 1.1
+    @AppStorage("ttsSlowRate")         private var ttsSlowRate: Double = 0.8
+    @AppStorage("dailyListeningGoal")  private var dailyListeningGoal: Int = 10
 
     // Backup
     @Environment(\.modelContext) private var context
@@ -205,6 +206,26 @@ struct SettingsView: View {
                         Text("재생 속도").foregroundStyle(Color(hex: "#e8c547"))
                     } footer: {
                         Text("1.0 = 보통 속도 기준. 기본 버튼과 느리게 버튼 각각 독립 조절.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+
+                    // ── 듣기 목표 ──────────────────────────────────
+                    Section {
+                        HStack {
+                            Text("일일 목표")
+                                .foregroundStyle(.white)
+                            Spacer()
+                            Text("\(dailyListeningGoal)회")
+                                .font(.headline.bold())
+                                .foregroundStyle(Color(hex: "#e8c547"))
+                            Stepper("", value: $dailyListeningGoal, in: 5...50, step: 1)
+                                .labelsHidden()
+                        }
+                        .listRowBackground(Color(hex: "#1a1828"))
+                    } header: {
+                        Text("듣기 목표").foregroundStyle(Color(hex: "#e8c547"))
+                    } footer: {
+                        Text("듣기 연습 화면 상단에 오늘의 진행도로 표시됩니다.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
 

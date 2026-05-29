@@ -34,7 +34,11 @@ struct ListeningPracticeView: View {
     @State private var attemptCount: Int = 0
     @State private var recentSentences: [String] = []
     @State private var showPeekedWarning = false
-    @AppStorage("recentTopics") private var recentTopicsRaw: String = ""
+    @AppStorage("recentTopics")        private var recentTopicsRaw: String = ""
+    @AppStorage("dailyListeningGoal")  private var dailyListeningGoal: Int = 10
+
+    @Query(sort: \ListeningRecord.practiceDate, order: .reverse)
+    private var allRecords: [ListeningRecord]
 
     private var recentTopics: [String] {
         recentTopicsRaw.split(separator: ",").map(String.init).filter { !$0.isEmpty }
@@ -48,6 +52,11 @@ struct ListeningPracticeView: View {
     }
 
     private var hasAPIKey: Bool { KeychainService.shared.hasAPIKey }
+
+    private var todayCount: Int {
+        let start = Calendar.current.startOfDay(for: Date())
+        return allRecords.filter { $0.practiceDate >= start }.count
+    }
 
     var body: some View {
         NavigationStack {
@@ -88,6 +97,9 @@ struct ListeningPracticeView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    dailyProgressView
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink {
                         ListeningHistoryView()
@@ -98,6 +110,38 @@ struct ListeningPracticeView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Daily progress
+
+    private var dailyProgressView: some View {
+        let count    = todayCount
+        let goal     = dailyListeningGoal
+        let progress = min(Double(count) / Double(goal), 1.0)
+        let done     = count >= goal
+
+        return ZStack {
+            Circle()
+                .stroke(Color(hex: "#e8c547").opacity(0.2), lineWidth: 3)
+            if done {
+                Circle()
+                    .stroke(Color(hex: "#e8c547"), lineWidth: 3)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color(hex: "#e8c547"))
+            } else {
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(Color(hex: "#e8c547"),
+                            style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 0.4), value: progress)
+                Text("\(count)/\(goal)")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(Color(hex: "#e8c547"))
+            }
+        }
+        .frame(width: 44, height: 44)
     }
 
     // MARK: - Sections
